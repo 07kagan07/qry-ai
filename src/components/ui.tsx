@@ -22,7 +22,7 @@ export function Button({
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-teal focus:ring-2 focus:ring-teal-soft ${className}`}
+      className={`min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-cobalt focus:ring-2 focus:ring-cobalt-soft ${className}`}
       {...props}
     />
   )
@@ -31,7 +31,7 @@ export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInpu
 export function Textarea({ className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-teal focus:ring-2 focus:ring-teal-soft ${className}`}
+      className={`w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-cobalt focus:ring-2 focus:ring-cobalt-soft ${className}`}
       {...props}
     />
   )

@@ -177,7 +177,7 @@ export default function MenuManager() {
                           </span>
                           <span className="text-sm text-ink-soft">₺{Number(item.price).toFixed(2)}</span>
                           {item.kcal != null ? (
-                            <span className="rounded bg-teal-soft px-1.5 py-0.5 text-xs text-ink-soft">
+                            <span className="rounded border border-line bg-surface px-1.5 py-0.5 text-xs text-ink-soft">
                               {item.kcal} kcal
                             </span>
                           ) : (

@@ -156,8 +156,10 @@ export default function ImportMenu() {
                       className="w-20 rounded border border-line px-2 py-1 text-sm"
                     />
                     <button
+                      type="button"
                       onClick={() => removeItem(ci, ii)}
-                      className="text-ink-soft hover:text-coral-deep"
+                      className="min-h-9 min-w-9 text-ink-soft hover:text-coral-deep"
+                      aria-label={`${item.name} satırını kaldır`}
                       title="Kaldır"
                     >
                       ✕

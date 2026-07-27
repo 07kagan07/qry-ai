@@ -6,10 +6,9 @@ import { ALLERGENS } from '../lib/allergens'
 // Kahraman bölümde ürünün kendisi: gerçek bir menü satırının nasıl görüneceği.
 function SampleMenuRow() {
   return (
-    <div className="mx-auto max-w-sm overflow-hidden rounded-xl border border-line bg-surface text-left shadow-[0_12px_40px_-16px_rgba(26,58,143,0.35)]">
-      <div className="kilim-band" aria-hidden />
+    <div className="mx-auto max-w-sm overflow-hidden rounded-xl border border-line bg-surface text-left shadow-[0_10px_32px_-18px_rgba(28,35,51,0.3)]">
       <div className="p-5">
-        <p className="text-[10px] font-semibold tracking-[0.2em] text-teal uppercase">Tatlılar</p>
+        <p className="text-[10px] font-semibold tracking-[0.2em] text-ink-soft uppercase">Tatlılar</p>
         <div className="mt-2 flex items-baseline">
           <span className="font-semibold text-ink">Fıstıklı Baklava</span>
           <span className="dot-leader" aria-hidden />
@@ -17,7 +16,7 @@ function SampleMenuRow() {
         </div>
         <p className="mt-1 text-sm text-ink-soft">Şam fıstıklı, tereyağlı, günlük şerbetli.</p>
         <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-          <span className="rounded-md bg-teal-soft px-2 py-0.5 font-medium text-teal-deep">250 kcal</span>
+          <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-medium text-ink-soft">250 kcal</span>
           {(['gluten', 'milk', 'nuts'] as const).map((a) => (
             <span key={a} className="rounded-md bg-coral-soft/60 px-2 py-0.5 text-coral-deep">
               {ALLERGENS[a].icon} {ALLERGENS[a].label}
@@ -37,9 +36,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen">
-      <div className="kilim-band" aria-hidden />
       <div className="mx-auto max-w-3xl px-5 py-14 text-center">
-        <p className="text-xs font-semibold tracking-[0.25em] text-teal uppercase">
+        <p className="text-xs font-semibold tracking-[0.25em] text-ink-soft uppercase">
           Kafeler için QR menü
         </p>
         <h1 className="font-display mt-3 text-4xl font-extrabold tracking-tight text-cobalt sm:text-5xl">
@@ -109,7 +107,7 @@ export default function Landing() {
               { date: '31 Aralık 2027', who: 'Kalori beyanı — tüm işletmeler için son tarih' },
             ].map((row) => (
               <li key={row.date} className="flex items-baseline gap-3">
-                <span className="font-display shrink-0 font-bold text-coral-deep">{row.date}</span>
+                <span className="font-display shrink-0 font-bold text-cobalt">{row.date}</span>
                 <span className="dot-leader" aria-hidden />
                 <span className="text-right text-ink-soft">{row.who}</span>
               </li>

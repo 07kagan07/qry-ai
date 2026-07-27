@@ -45,7 +45,7 @@ export default function PanelLayout() {
               className={({ isActive }) =>
                 `min-h-11 shrink-0 border-b-[3px] px-3 py-2.5 text-sm font-semibold transition-colors ${
                   isActive
-                    ? 'border-teal text-white'
+                    ? 'border-white text-white'
                     : 'border-transparent text-white/60 hover:text-white'
                 }`
               }
@@ -55,7 +55,6 @@ export default function PanelLayout() {
           ))}
         </nav>
       </header>
-      <div className="kilim-band" aria-hidden />
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Outlet />
       </main>

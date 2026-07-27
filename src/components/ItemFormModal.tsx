@@ -128,7 +128,7 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
       <div className="my-8 w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="text-ink-soft hover:text-ink">
+          <button type="button" onClick={onClose} aria-label="Kapat" className="min-h-11 min-w-11 text-ink-soft hover:text-ink">
             ✕
           </button>
         </div>

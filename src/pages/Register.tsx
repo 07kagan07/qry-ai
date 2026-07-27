@@ -37,12 +37,14 @@ export default function Register() {
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <Label>E-posta</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input type="email" name="email" autoComplete="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div>
             <Label>Şifre (en az 6 karakter)</Label>
             <Input
               type="password"
+              name="new-password"
+              autoComplete="new-password"
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

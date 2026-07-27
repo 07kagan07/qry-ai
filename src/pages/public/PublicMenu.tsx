@@ -39,21 +39,20 @@ export default function PublicMenu() {
   return (
     <div className="mx-auto max-w-lg pb-20">
       {/* Başlık */}
-      <header className="bg-surface px-5 pt-8 pb-6 text-center">
+      <header className="border-b border-line bg-surface px-5 pt-8 pb-6 text-center">
         {cafe.logo_url && (
           <img
             src={cafe.logo_url}
             alt=""
-            className="mx-auto mb-3 h-16 w-16 rounded-full border-2 border-cobalt-soft object-cover"
+            className="mx-auto mb-3 h-16 w-16 rounded-full border border-line object-cover"
           />
         )}
-        <p className="text-xs font-semibold tracking-[0.2em] text-teal uppercase">Menü</p>
+        <p className="text-xs font-semibold tracking-[0.2em] text-ink-soft uppercase">Menü</p>
         <h1 className="font-display mt-1 text-4xl font-bold tracking-tight text-cobalt">
           {cafe.name}
         </h1>
         {cafe.address && <p className="mt-2 text-sm text-ink-soft">{cafe.address}</p>}
       </header>
-      <div className="kilim-band" aria-hidden />
 
       {/* Kategori gezinme */}
       <nav
@@ -133,9 +132,8 @@ export default function PublicMenu() {
         )}
         {shown.map((cat) => (
           <section key={cat.id} className="mb-9">
-            <h2 className="font-display mb-4 flex items-baseline gap-3 text-xl font-bold text-cobalt">
+            <h2 className="font-display mb-4 border-b border-line pb-2 text-xl font-bold text-ink">
               {cat.name}
-              <span className="h-1.5 w-10 shrink-0 self-center rounded-full bg-teal" aria-hidden />
             </h2>
             <ul className="space-y-5">
               {cat.items.map((item) => (
@@ -152,7 +150,7 @@ export default function PublicMenu() {
                   )}
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                     {item.kcal != null && (
-                      <span className="rounded-md bg-teal-soft px-2 py-0.5 font-medium text-teal-deep">
+                      <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-medium text-ink-soft">
                         {item.kcal} kcal
                       </span>
                     )}
@@ -184,7 +182,6 @@ export default function PublicMenu() {
 
         {/* Mevzuat lejantı */}
         <footer className="mt-10 overflow-hidden rounded-xl border border-line bg-surface">
-          <div className="kilim-band" aria-hidden />
           <div className="p-4 text-xs text-ink-soft">
             <h3 className="font-display mb-2 text-sm font-bold text-ink">Alerjen bilgilendirmesi</h3>
             <p className="mb-3 leading-relaxed">

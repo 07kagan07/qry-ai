@@ -38,11 +38,11 @@ export default function Login() {
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <Label>E-posta</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input type="email" name="email" autoComplete="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div>
             <Label>Şifre</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input type="password" name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <ErrorText>{error}</ErrorText>
           <Button type="submit" disabled={busy} className="w-full">
