@@ -42,6 +42,41 @@ export async function analyzeItem(name: string, description?: string, ingredient
   return result
 }
 
+export interface BatchAnalyzeInput {
+  id: string
+  name: string
+  description?: string | null
+}
+
+export interface BatchAnalyzeResult extends AnalyzeResult {
+  id: string
+  description: string | null
+}
+
+/**
+ * Birden çok ürünün beyanlarını (alerjen, kcal, alkol, domuz) ve eksik
+ * açıklamalarını toplu üretir. 40'lık parçalara bölerek sırayla gönderir.
+ */
+export async function analyzeBatch(
+  items: BatchAnalyzeInput[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<Map<string, BatchAnalyzeResult>> {
+  const CHUNK = 40
+  const map = new Map<string, BatchAnalyzeResult>()
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK)
+    const { results } = await invoke<{ results: BatchAnalyzeResult[] }>('ai-analyze-batch', {
+      items: chunk,
+    })
+    for (const r of results ?? []) {
+      r.allergens = (r.allergens ?? []).filter((a): a is AllergenKey => isAllergenKey(a))
+      map.set(r.id, r)
+    }
+    onProgress?.(Math.min(i + CHUNK, items.length), items.length)
+  }
+  return map
+}
+
 /** Menü fotoğrafından ürünleri çıkar */
 export async function importMenuFromImage(imageBase64: string, mediaType: string) {
   const result = await invoke<{ categories: ImportedCategory[] }>('ai-import-menu', {

@@ -1,7 +1,13 @@
 ﻿import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { importMenuFromImage, type ImportedCategory } from '../../lib/ai'
+import {
+  analyzeBatch,
+  importMenuFromImage,
+  type BatchAnalyzeInput,
+  type ImportedCategory,
+} from '../../lib/ai'
+import type { AiSuggestion } from '../../lib/types'
 import { Button, Card, ErrorText, Spinner } from '../../components/ui'
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -24,6 +30,7 @@ export default function ImportMenu() {
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveStep, setSaveStep] = useState('')
   const [done, setDone] = useState(false)
 
   async function onFile(file: File | undefined) {
@@ -70,13 +77,35 @@ export default function ImportMenu() {
     setError('')
     setSaving(true)
     try {
+      // 1) Tüm ürünlerin beyanlarını (alerjen, kcal, alkol, domuz) ve eksik
+      //    açıklamalarını toplu üret. Başarısız olursa içe aktarma yine sürer.
+      setSaveStep('Alerjen ve kalori beyanları oluşturuluyor… (30-60 sn sürebilir)')
+      const inputs: BatchAnalyzeInput[] = preview.flatMap((cat, ci) =>
+        cat.items.map((item, ii) => ({
+          id: `${ci}-${ii}`,
+          name: item.name,
+          description: item.description,
+        })),
+      )
+      let analysis: Awaited<ReturnType<typeof analyzeBatch>> | null = null
+      let analysisFailed = false
+      try {
+        analysis = await analyzeBatch(inputs, (done, total) =>
+          setSaveStep(`Alerjen ve kalori beyanları oluşturuluyor… (${done}/${total} ürün)`),
+        )
+      } catch {
+        analysisFailed = true
+      }
+
+      // 2) Kategorileri ve ürünleri kaydet
+      setSaveStep('Menü kaydediliyor…')
       const { data: existing } = await supabase
         .from('categories')
         .select('id')
         .eq('cafe_id', cafe.id)
       let sortBase = existing?.length ?? 0
 
-      for (const cat of preview) {
+      for (const [ci, cat] of preview.entries()) {
         const { data: catRow, error: catErr } = await supabase
           .from('categories')
           .insert({ cafe_id: cafe.id, name: cat.name, sort_order: sortBase++ })
@@ -84,14 +113,36 @@ export default function ImportMenu() {
           .single()
         if (catErr) throw new Error(catErr.message)
 
-        const rows = cat.items.map((item, i) => ({
-          cafe_id: cafe.id,
-          category_id: catRow.id,
-          name: item.name,
-          description: item.description,
-          price: item.price ?? 0,
-          sort_order: i,
-        }))
+        const rows = cat.items.map((item, ii) => {
+          const r = analysis?.get(`${ci}-${ii}`)
+          const suggestion: AiSuggestion | null = r
+            ? {
+                kcal_estimate: r.kcal_estimate,
+                kcal_min: r.kcal_min,
+                kcal_max: r.kcal_max,
+                allergens: r.allergens,
+                contains_alcohol: r.contains_alcohol,
+                contains_pork: r.contains_pork,
+                confidence: r.confidence,
+                notes: r.notes,
+                suggested_at: new Date().toISOString(),
+                approved: false, // işletmeci panelden kontrol edip kaydedince onaylanır
+              }
+            : null
+          return {
+            cafe_id: cafe.id,
+            category_id: catRow.id,
+            name: item.name,
+            description: item.description ?? r?.description ?? null,
+            price: item.price ?? 0,
+            kcal: r?.kcal_estimate ?? null,
+            allergens: r?.allergens ?? [],
+            contains_alcohol: r?.contains_alcohol ?? false,
+            contains_pork: r?.contains_pork ?? false,
+            ai_suggested: suggestion,
+            sort_order: ii,
+          }
+        })
         if (rows.length) {
           const { error: itemErr } = await supabase.from('menu_items').insert(rows)
           if (itemErr) throw new Error(itemErr.message)
@@ -99,10 +150,17 @@ export default function ImportMenu() {
       }
       setPreview(null)
       setDone(true)
+      if (analysisFailed) {
+        setError(
+          'Ürünler kaydedildi ancak AI beyan doldurma başarısız oldu (muhtemelen kota sınırı). ' +
+            'Menü Yönetimi sayfasından ürünleri tek tek "AI ile Doldur" ile tamamlayabilirsiniz.',
+        )
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kaydetme başarısız oldu.')
     } finally {
       setSaving(false)
+      setSaveStep('')
     }
   }
 
@@ -110,9 +168,11 @@ export default function ImportMenu() {
     <div className="max-w-2xl">
       <h1 className="mb-2 text-xl font-bold">AI ile Menü İçe Aktarma</h1>
       <p className="mb-4 text-sm text-ink-soft">
-        Mevcut basılı menünüzün fotoğrafını yükleyin; yapay zeka kategorileri, ürünleri ve fiyatları
-        otomatik çıkarır. Kaydetmeden önce düzenleyebilirsiniz. İçe aktardıktan sonra her ürün için{' '}
-        <strong>"AI ile Doldur"</strong> ile alerjen ve kalori bilgilerini tamamlayın.
+        Mevcut basılı menünüzün fotoğrafını yükleyin; yapay zeka kategorileri, ürünleri ve
+        fiyatları çıkarır. Kaydederken her ürünün <strong>alerjen, kalori, alkol/domuz beyanları
+        ve eksik açıklamaları da otomatik doldurulur</strong>. Bunlar AI önerisidir — kaydedilen
+        ürünler panelde "kontrol edin" rozetiyle işaretlenir, düzenleyip kaydettiğinizde
+        onaylanmış sayılır.
       </p>
 
       <Card>
@@ -170,7 +230,9 @@ export default function ImportMenu() {
             </Card>
           ))}
           <Button onClick={saveAll} disabled={saving} className="w-full">
-            {saving ? 'Kaydediliyor…' : `${preview.reduce((n, c) => n + c.items.length, 0)} ürünü menüye ekle`}
+            {saving
+              ? saveStep || 'Kaydediliyor…'
+              : `${preview.reduce((n, c) => n + c.items.length, 0)} ürünü beyanlarıyla birlikte menüye ekle`}
           </Button>
         </div>
       )}

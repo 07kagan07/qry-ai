@@ -185,6 +185,14 @@ export default function MenuManager() {
                               kcal eksik
                             </span>
                           )}
+                          {item.ai_suggested && !item.ai_suggested.approved && (
+                            <span
+                              className="rounded bg-coral-soft px-1.5 py-0.5 text-xs font-medium text-coral-deep"
+                              title="Beyanlar AI tarafından dolduruldu; düzenleyip kaydettiğinizde onaylanmış sayılır"
+                            >
+                              AI önerisi — kontrol edin
+                            </span>
+                          )}
                           {item.contains_alcohol && <span title="Alkol içerir">🍷</span>}
                           {item.contains_pork && <span title="Domuz ürünü içerir">🥓</span>}
                           <span className="text-sm">
