@@ -1,7 +1,15 @@
-﻿import { useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useAuth } from '../../context/AuthContext'
 import { Button, Card, Input, Label } from '../../components/ui'
+
+// QR içine gömülecek site adresi. Yayında VITE_PUBLIC_SITE_URL tanımlanmalı;
+// tanımlı değilse tarayıcının adresi kullanılır (geliştirmede localhost olur).
+const SITE_URL: string =
+  (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, '') ??
+  window.location.origin
+
+const IS_LOCAL_URL = /localhost|127\.0\.0\.1/.test(SITE_URL)
 
 export default function QrPage() {
   const { cafe } = useAuth()
@@ -10,7 +18,7 @@ export default function QrPage() {
 
   if (!cafe) return null
 
-  const baseUrl = `${window.location.origin}/menu/${cafe.slug}`
+  const baseUrl = `${SITE_URL}/menu/${cafe.slug}`
   const url = table ? `${baseUrl}?masa=${encodeURIComponent(table)}` : baseUrl
 
   function download() {
@@ -25,6 +33,19 @@ export default function QrPage() {
   return (
     <div className="max-w-xl">
       <h1 className="mb-4 text-xl font-bold">QR Kod</h1>
+
+      {IS_LOCAL_URL && (
+        <Card className="mb-4 border-coral bg-coral-soft">
+          <p className="text-sm leading-relaxed text-coral-deep">
+            <strong>Bu QR kod henüz telefonda çalışmaz.</strong> Uygulama şu an geliştirme
+            adresinde (localhost) çalışıyor; localhost yalnızca bu bilgisayardan erişilebilir.
+            Aynı Wi-Fi ağındaki telefonla denemek için uygulamayı bilgisayarınızın ağ adresi
+            üzerinden açın, kalıcı çözüm için siteyi yayınlayıp <code>VITE_PUBLIC_SITE_URL</code>{' '}
+            değerini ayarlayın (bkz. README).
+          </p>
+        </Card>
+      )}
+
       <Card className="flex flex-col items-center gap-4">
         <div ref={wrapperRef} className="rounded-lg bg-white p-4">
           <QRCodeCanvas value={url} size={280} level="M" includeMargin />

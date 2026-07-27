@@ -40,8 +40,15 @@ cp .env.example .env
 
 ```bash
 npm install
-npm run dev
+npm run dev          # sadece bu bilgisayardan erişim
+npm run dev -- --host  # aynı ağdaki telefonla test için (Network adresini kullanın)
 ```
+
+> **QR kod ve adres:** QR kodun içine gömülen adres uygulamanın açıldığı adrestir. `localhost`
+> üzerinden üretilen QR telefonda açılmaz. Telefonla test için uygulamayı `--host` ile başlatıp
+> paneli **Network** adresinden (örn. `http://192.168.x.x:5173`) açın. Canlıya çıkınca `.env`
+> içinde `VITE_PUBLIC_SITE_URL=https://siteniz.com` tanımlayın — QR kodlar her zaman bu adresi
+> kullanır.
 
 ### 4. AI Edge Functions (Supabase CLI gerekir)
 
