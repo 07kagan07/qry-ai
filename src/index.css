@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/*
+  Tasarım sistemi — "Çini & Kilim"
+  Türk kafe kültüründen: çini kobaltı, turkuaz, mercan; porselen zemin.
+  Mercan yalnızca dikkat/alerjen anlamı taşır. İmza öğesi: kilim şeridi.
+*/
+@theme {
+  --font-display: "Bricolage Grotesque", "Segoe UI", ui-sans-serif, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+
+  --color-porcelain: #f6f6f2;
+  --color-surface: #ffffff;
+  --color-ink: #1c2333;
+  --color-ink-soft: #5c6274;
+  --color-line: #e4e4dc;
+  --color-line-strong: #c9c9be;
+
+  --color-cobalt: #1a3a8f;
+  --color-cobalt-deep: #142c6e;
+  --color-cobalt-soft: #e9edf9;
+
+  --color-teal: #0e8f8b;
+  --color-teal-deep: #0b716e;
+  --color-teal-soft: #dff2f1;
+
+  --color-coral: #d94f2b;
+  --color-coral-deep: #b53e1f;
+  --color-coral-soft: #fbe9e2;
+}
+
+body {
+  @apply bg-porcelain text-ink antialiased;
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Erişilebilirlik: görünür klavye odağı */
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* İmza öğesi: kilim şeridi */
+.kilim-band {
+  height: 8px;
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--color-cobalt) 0 14px,
+    var(--color-teal) 14px 26px,
+    var(--color-coral) 26px 34px
+  );
+}
+
+/* Klasik menü tipografisi: noktalı fiyat kılavuzu */
+.dot-leader {
+  flex: 1 1 auto;
+  min-width: 1.25rem;
+  margin: 0 0.45rem;
+  border-bottom: 2px dotted var(--color-line-strong);
+  transform: translateY(-0.32em);
+}
+
+/* Kategori nav yatay kaydırma: scrollbar gizle ama kaydırılabilir kalsın */
+.scroll-pills {
+  scrollbar-width: none;
+}
+.scroll-pills::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Yazdırılabilir menü: ekran dışı öğeleri gizle */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .print-page {
+    box-shadow: none !important;
+  }
+}
