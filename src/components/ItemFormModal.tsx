@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import type { AllergenKey } from '../lib/allergens'
@@ -29,6 +29,9 @@ interface Props {
 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const SAVED_MESSAGE_MS = 1600
+
+type SaveState = 'idle' | 'saving' | 'saved'
 
 export default function ItemFormModal({ title, initial, onSave, onClose }: Props) {
   const { cafe } = useAuth()
@@ -43,7 +46,6 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(initial?.ai_suggested ?? null)
   const [aiNote, setAiNote] = useState('')
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
   const [descBusy, setDescBusy] = useState(false)
 
@@ -52,6 +54,26 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
   const [imagePreview, setImagePreview] = useState<{ base64: string; mimeType: string } | null>(null)
   const [imgBusy, setImgBusy] = useState<'idle' | 'prompting' | 'generating' | 'uploading'>('idle')
   const [imgError, setImgError] = useState('')
+
+  // Kaydet çubuğu: yalnızca kaydedilmemiş bir değişiklik varken (ya da az önce
+  // kaydedildi mesajı gösterilirken) görünür.
+  const [dirty, setDirty] = useState(false)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const isFirstRender = useRef(true)
+  const savedTimeoutRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    setDirty(true)
+    setSaveState('idle')
+    window.clearTimeout(savedTimeoutRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, description, price, kcal, allergens, containsAlcohol, containsPork, imageUrl])
+
+  useEffect(() => () => window.clearTimeout(savedTimeoutRef.current), [])
 
   async function runAiAnalyze() {
     if (!name.trim()) {
@@ -140,6 +162,9 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
       const url = await uploadGeneratedImage(cafe.id, imagePreview.base64, imagePreview.mimeType)
       setImageUrl(url)
       setImagePreview(null)
+      // "Kaydet" demek burada gerçekten kaydetmeli — ürünü hemen kaydediyoruz,
+      // kullanıcı ayrıca alttaki çubuğa basmak zorunda kalmasın.
+      await saveDraft(url)
     } catch (err) {
       setImgError(err instanceof Error ? err.message : 'Görsel kaydedilemedi.')
     } finally {
@@ -168,15 +193,19 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
     }
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
+  // Ürünü kaydeden tek yer. imageOverride, henüz state'e yansımamış olabilecek
+  // (setState asenkron) taze yüklenen görsel URL'ini kullanmak için opsiyoneldir.
+  // Var olan bir ürün düzenlenirken modal açık kalır ve kısa bir "Kaydedildi"
+  // onayı gösterilip kaybolur; yeni ürün oluştururken modal kapanır (henüz bir
+  // kaydı olmadığı için tekrar kaydetmek yeni bir satır oluşturur).
+  async function saveDraft(imageOverride?: string | null) {
     setError('')
     const priceNum = Number(price.replace(',', '.'))
     if (Number.isNaN(priceNum) || priceNum < 0) {
       setError('Geçerli bir fiyat girin.')
       return
     }
-    setBusy(true)
+    setSaveState('saving')
     try {
       await onSave({
         name: name.trim(),
@@ -188,25 +217,37 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
         contains_pork: containsPork,
         // Kaydetme = işletmeci onayı
         ai_suggested: aiSuggestion ? { ...aiSuggestion, approved: true } : null,
-        image_url: imageUrl,
+        image_url: imageOverride !== undefined ? imageOverride : imageUrl,
       })
-      onClose()
+      if (!initial) {
+        onClose()
+        return
+      }
+      setDirty(false)
+      setSaveState('saved')
+      window.clearTimeout(savedTimeoutRef.current)
+      savedTimeoutRef.current = window.setTimeout(() => setSaveState('idle'), SAVED_MESSAGE_MS)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kaydedilemedi.')
-    } finally {
-      setBusy(false)
+      setSaveState('idle')
     }
   }
 
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    await saveDraft()
+  }
+
   const imgLoading = imgBusy !== 'idle'
+  const showSaveBar = dirty || saveState !== 'idle'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4"
       style={{ overscrollBehavior: 'contain' }}
     >
-      <div className="my-4 w-full max-w-lg rounded-xl bg-white p-4 shadow-xl sm:my-8 sm:p-5">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-line p-4 sm:p-5">
           <h2 className="text-lg font-bold">{title}</h2>
           <button
             type="button"
@@ -217,150 +258,171 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
             ✕
           </button>
         </div>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <Label>Ürün Adı *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Örn: Fıstıklı Baklava" />
-          </div>
-          <div>
-            <div className="flex items-center justify-between">
-              <Label>Açıklama</Label>
-              <button
-                type="button"
-                onClick={runAiDescribe}
-                disabled={descBusy}
-                className="mb-1 text-xs font-medium text-cobalt hover:underline disabled:text-ink-soft"
-              >
-                {descBusy ? 'Üretiliyor…' : '✨ Açıklama üret'}
-              </button>
-            </div>
-            <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div>
-            <Label>Malzemeler (AI analizinin isabetini artırır, menüde gösterilmez)</Label>
-            <Input
-              value={ingredients}
-              onChange={(e) => setIngredients(e.target.value)}
-              placeholder="Örn: antep fıstığı, yufka, tereyağı, şerbet"
-            />
-          </div>
 
-          {/* Görsel */}
-          <div>
-            <Label>Görsel</Label>
-            {imageUrl ? (
-              <div className="flex items-center gap-3">
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="h-24 w-24 rounded-lg border border-line object-cover"
-                />
-                <Button type="button" variant="secondary" onClick={() => setImageUrl(null)}>
-                  Görseli kaldır
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+            <div>
+              <Label>Ürün Adı *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Örn: Fıstıklı Baklava" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <Label>Açıklama</Label>
+                <button
+                  type="button"
+                  onClick={runAiDescribe}
+                  disabled={descBusy}
+                  className="mb-1 text-xs font-medium text-cobalt hover:underline disabled:text-ink-soft"
+                >
+                  {descBusy ? 'Üretiliyor…' : '✨ Açıklama üret'}
+                </button>
+              </div>
+              <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <div>
+              <Label>Malzemeler (AI analizinin isabetini artırır, menüde gösterilmez)</Label>
+              <Input
+                value={ingredients}
+                onChange={(e) => setIngredients(e.target.value)}
+                placeholder="Örn: antep fıstığı, yufka, tereyağı, şerbet"
+              />
+            </div>
+
+            {/* Görsel */}
+            <div>
+              <Label>Görsel</Label>
+              {imageUrl ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="h-24 w-24 rounded-lg border border-line object-cover"
+                  />
+                  <Button type="button" variant="secondary" onClick={() => setImageUrl(null)}>
+                    Görseli kaldır
+                  </Button>
+                </div>
+              ) : imagePreview ? (
+                <div className="space-y-2">
+                  <img
+                    src={`data:${imagePreview.mimeType};base64,${imagePreview.base64}`}
+                    alt="AI tarafından üretilen ürün görseli önizlemesi"
+                    className="h-40 w-40 rounded-lg border border-line object-cover"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" onClick={useGeneratedImage} disabled={imgLoading}>
+                      {imgBusy === 'uploading' ? 'Kaydediliyor…' : 'Kaydet'}
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={runGenerateImage} disabled={imgLoading}>
+                      {imgBusy !== 'idle' ? 'Oluşturuluyor…' : 'Yeniden oluştur'}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => setImagePreview(null)} disabled={imgLoading}>
+                      Vazgeç
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-lg border border-line bg-porcelain p-3">
+                  <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover:border-cobalt">
+                    Kendi görselinizi yükleyin
+                    <input
+                      type="file"
+                      accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                      className="sr-only"
+                      onChange={(e) => onFileSelected(e.target.files?.[0])}
+                      disabled={imgLoading}
+                    />
+                  </label>
+
+                  <div className="border-t border-line pt-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={runGenerateImage}
+                      disabled={imgLoading || !name.trim()}
+                    >
+                      {imgBusy === 'prompting'
+                        ? 'Hazırlanıyor…'
+                        : imgBusy === 'generating'
+                          ? 'Görsel oluşturuluyor…'
+                          : '✨ AI ile görsel oluştur'}
+                    </Button>
+                  </div>
+                  <ErrorText>{imgError}</ErrorText>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Fiyat (₺) *</Label>
+                <Input value={price} onChange={(e) => setPrice(e.target.value)} required inputMode="decimal" />
+              </div>
+              <div>
+                <Label>Enerji (kcal)</Label>
+                <Input value={kcal} onChange={(e) => setKcal(e.target.value)} inputMode="numeric" />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-line bg-cobalt-soft/50 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-cobalt-deep">Mevzuat Beyanları</span>
+                <Button type="button" variant="secondary" onClick={runAiAnalyze} disabled={aiBusy} className="!py-1 text-xs">
+                  {aiBusy ? 'Analiz ediliyor…' : '✨ AI ile Doldur'}
                 </Button>
               </div>
-            ) : imagePreview ? (
-              <div className="space-y-2">
-                <img
-                  src={`data:${imagePreview.mimeType};base64,${imagePreview.base64}`}
-                  alt="AI tarafından üretilen ürün görseli önizlemesi"
-                  className="h-40 w-40 rounded-lg border border-line object-cover"
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={useGeneratedImage} disabled={imgLoading}>
-                    {imgBusy === 'uploading' ? 'Kaydediliyor…' : 'Bu görseli kullan'}
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={runGenerateImage} disabled={imgLoading}>
-                    {imgBusy !== 'idle' ? 'Oluşturuluyor…' : 'Yeniden oluştur'}
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={() => setImagePreview(null)} disabled={imgLoading}>
-                    Vazgeç
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 rounded-lg border border-line bg-porcelain p-3">
-                <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover:border-cobalt">
-                  Kendi görselinizi yükleyin
+              {aiNote && <p className="mb-2 rounded bg-white p-2 text-xs leading-relaxed text-ink-soft">{aiNote}</p>}
+              <Label>Alerjenler</Label>
+              <AllergenPicker value={allergens} onChange={setAllergens} />
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+                <label className="flex min-h-11 items-center gap-2 text-sm">
                   <input
-                    type="file"
-                    accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                    className="sr-only"
-                    onChange={(e) => onFileSelected(e.target.files?.[0])}
-                    disabled={imgLoading}
+                    type="checkbox"
+                    checked={containsAlcohol}
+                    onChange={(e) => setContainsAlcohol(e.target.checked)}
+                    className="h-4 w-4"
                   />
+                  🍷 Alkol içerir
                 </label>
-
-                <div className="border-t border-line pt-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={runGenerateImage}
-                    disabled={imgLoading || !name.trim()}
-                  >
-                    {imgBusy === 'prompting'
-                      ? 'Hazırlanıyor…'
-                      : imgBusy === 'generating'
-                        ? 'Görsel oluşturuluyor…'
-                        : '✨ AI ile görsel oluştur'}
-                  </Button>
-                </div>
-                <ErrorText>{imgError}</ErrorText>
+                <label className="flex min-h-11 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={containsPork}
+                    onChange={(e) => setContainsPork(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  🥓 Domuz ürünü içerir
+                </label>
               </div>
-            )}
+            </div>
+
+            <ErrorText>{error}</ErrorText>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Fiyat (₺) *</Label>
-              <Input value={price} onChange={(e) => setPrice(e.target.value)} required inputMode="decimal" />
+          {/* Kaydet çubuğu: yalnızca değişiklik varken belirir, kaydedince
+              onay gösterip kaybolur (var olan ürünler için modal açık kalır). */}
+          <div
+            aria-hidden={!showSaveBar}
+            className={`shrink-0 overflow-hidden border-t border-line bg-white transition-[transform,opacity] duration-200 ${
+              showSaveBar
+                ? 'translate-y-0 opacity-100'
+                : 'pointer-events-none translate-y-2 opacity-0'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+              {saveState === 'saved' ? (
+                <p role="status" className="text-sm font-medium text-teal-deep">
+                  ✓ Kaydedildi
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-ink-soft">Kaydedilmemiş değişiklikler var</p>
+                  <Button type="submit" disabled={saveState === 'saving'} className="shrink-0">
+                    {saveState === 'saving' ? 'Kaydediliyor…' : 'Kaydet'}
+                  </Button>
+                </>
+              )}
             </div>
-            <div>
-              <Label>Enerji (kcal)</Label>
-              <Input value={kcal} onChange={(e) => setKcal(e.target.value)} inputMode="numeric" />
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-line bg-cobalt-soft/50 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-cobalt-deep">Mevzuat Beyanları</span>
-              <Button type="button" variant="secondary" onClick={runAiAnalyze} disabled={aiBusy} className="!py-1 text-xs">
-                {aiBusy ? 'Analiz ediliyor…' : '✨ AI ile Doldur'}
-              </Button>
-            </div>
-            {aiNote && <p className="mb-2 rounded bg-white p-2 text-xs leading-relaxed text-ink-soft">{aiNote}</p>}
-            <Label>Alerjenler</Label>
-            <AllergenPicker value={allergens} onChange={setAllergens} />
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={containsAlcohol}
-                  onChange={(e) => setContainsAlcohol(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                🍷 Alkol içerir
-              </label>
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={containsPork}
-                  onChange={(e) => setContainsPork(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                🥓 Domuz ürünü içerir
-              </label>
-            </div>
-          </div>
-
-          <ErrorText>{error}</ErrorText>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose} className="w-full sm:w-auto">
-              Vazgeç
-            </Button>
-            <Button type="submit" disabled={busy} className="w-full sm:w-auto">
-              {busy ? 'Kaydediliyor…' : 'Kaydet'}
-            </Button>
           </div>
         </form>
       </div>

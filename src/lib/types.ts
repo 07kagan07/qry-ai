@@ -1,5 +1,7 @@
 import type { AllergenKey } from './allergens'
 
+export type MenuTheme = 'classic' | 'grid' | 'elegant' | 'compact'
+
 export interface Cafe {
   id: string
   owner_id: string
@@ -10,6 +12,7 @@ export interface Cafe {
   phone: string | null
   instagram: string | null
   default_locale: string
+  menu_theme: MenuTheme
   created_at: string
 }
 

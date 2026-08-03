@@ -1,8 +1,53 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { MENU_THEMES } from '../../lib/menuThemes'
+import type { MenuTheme } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label } from '../../components/ui'
+
+// Her tema için küçük, gerçek ekran görüntüsü gerektirmeyen soyut önizleme —
+// düzenin şeklini (görsel var mı, ızgara mı liste mi, ortalı mı) anında anlatır.
+function ThemePreview({ theme }: { theme: MenuTheme }) {
+  if (theme === 'grid') {
+    return (
+      <div className="grid grid-cols-2 gap-1">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="aspect-square rounded bg-line" />
+        ))}
+      </div>
+    )
+  }
+  if (theme === 'elegant') {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1.5">
+        <div className="h-1.5 w-10 rounded-full bg-line" />
+        <div className="h-1 w-16 rounded-full bg-line/70" />
+        <div className="h-1 w-12 rounded-full bg-line/70" />
+      </div>
+    )
+  }
+  if (theme === 'compact') {
+    return (
+      <div className="flex h-full flex-col justify-center gap-1">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-1 rounded-full bg-line" style={{ width: `${70 - i * 8}%` }} />
+        ))}
+      </div>
+    )
+  }
+  // classic
+  return (
+    <div className="flex h-full flex-col justify-center gap-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <div className="h-4 w-4 shrink-0 rounded bg-line" />
+          <div className="h-1.5 flex-1 rounded-full bg-line/70" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const { cafe, refreshCafe } = useAuth()
@@ -13,6 +58,8 @@ export default function Dashboard() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [themeBusy, setThemeBusy] = useState<MenuTheme | null>(null)
+  const [themeError, setThemeError] = useState('')
 
   if (!cafe) return null
 
@@ -31,6 +78,19 @@ export default function Dashboard() {
       return
     }
     setSaved(true)
+    await refreshCafe()
+  }
+
+  async function selectTheme(theme: MenuTheme) {
+    if (theme === cafe!.menu_theme || themeBusy) return
+    setThemeError('')
+    setThemeBusy(theme)
+    const { error } = await supabase.from('cafes').update({ menu_theme: theme }).eq('id', cafe!.id)
+    setThemeBusy(null)
+    if (error) {
+      setThemeError(error.message)
+      return
+    }
     await refreshCafe()
   }
 
@@ -61,6 +121,48 @@ export default function Dashboard() {
             {busy ? 'Kaydediliyor…' : 'Kaydet'}
           </Button>
         </form>
+      </Card>
+
+      <Card className="mt-4">
+        <h2 className="mb-1 font-semibold text-ink">Menü Görünümü</h2>
+        <p className="mb-3 text-sm text-ink-soft">
+          Müşterilerinizin QR kodu okuttuğunda göreceği menü tasarımını seçin. Değişiklik anında
+          yayına alınır.
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {MENU_THEMES.map((t) => {
+            const active = cafe.menu_theme === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => selectTheme(t.id)}
+                disabled={themeBusy !== null}
+                aria-pressed={active}
+                className={`flex min-h-11 touch-manipulation flex-col gap-2 rounded-xl border p-3 text-left transition-colors active:scale-[0.98] ${
+                  active
+                    ? 'border-cobalt bg-cobalt-soft'
+                    : 'border-line bg-surface hover:border-line-strong'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                <div className="h-16 rounded-lg border border-line bg-porcelain p-2">
+                  <ThemePreview theme={t.id} />
+                </div>
+                <div>
+                  <p className={`text-sm font-semibold ${active ? 'text-cobalt-deep' : 'text-ink'}`}>
+                    {t.name}
+                    {themeBusy === t.id && ' …'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-soft">{t.description}</p>
+                </div>
+                {active && (
+                  <span className="text-xs font-semibold text-cobalt-deep">✓ Kullanılıyor</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+        <ErrorText>{themeError}</ErrorText>
       </Card>
 
       <Card className="mt-4 border-line bg-cobalt-soft">
