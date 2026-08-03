@@ -37,6 +37,9 @@ export async function uploadItemImage(cafeId: string, file: File): Promise<strin
   return upload(cafeId, ext, file, file.type)
 }
 
+/** Karşılama sayfası kapak görseli — aynı yükleme mantığı, farklı isim. */
+export const uploadCafeImage = uploadItemImage
+
 /** AI'nin ürettiği base64 görseli storage'a yükler. */
 export async function uploadGeneratedImage(
   cafeId: string,

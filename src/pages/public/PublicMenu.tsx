@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { usePublicMenu } from '../../lib/usePublicMenu'
 import type { AllergenKey } from '../../lib/allergens'
 import { Spinner } from '../../components/ui'
+import LandingHub from './LandingHub'
 import ClassicMenuTheme from './themes/ClassicMenuTheme'
 import GridMenuTheme from './themes/GridMenuTheme'
 import ElegantMenuTheme from './themes/ElegantMenuTheme'
@@ -20,6 +21,7 @@ const THEME_COMPONENTS: Record<string, React.ComponentType<MenuThemeProps>> = {
 // yerde yönetilir; görünüm tamamen seçili temaya devredilir (themes/*.tsx).
 export default function PublicMenu() {
   const { slug } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { cafe, categories, loading, error } = usePublicMenu(slug)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [excluded, setExcluded] = useState<AllergenKey[]>([])
@@ -52,6 +54,15 @@ export default function PublicMenu() {
 
   function toggleAllergen(key: AllergenKey) {
     setExcluded((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  // Karşılama sayfası opsiyoneldir; QR her zaman aynı /menu/:slug adresini
+  // gösterir, "Menüye Git" tıklanınca ?view=menu ile geri tuşuna uyumlu
+  // şekilde asıl menüye geçilir.
+  if (cafe.menu_landing_enabled && searchParams.get('view') !== 'menu') {
+    return (
+      <LandingHub cafe={cafe} onEnterMenu={() => setSearchParams({ view: 'menu' })} />
+    )
   }
 
   const ThemeComponent = THEME_COMPONENTS[cafe.menu_theme] ?? ClassicMenuTheme

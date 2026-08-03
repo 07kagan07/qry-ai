@@ -13,6 +13,11 @@ export interface Cafe {
   instagram: string | null
   default_locale: string
   menu_theme: MenuTheme
+  menu_landing_enabled: boolean
+  cover_image_url: string | null
+  wifi_ssid: string | null
+  wifi_password: string | null
+  website_url: string | null
   created_at: string
 }
 

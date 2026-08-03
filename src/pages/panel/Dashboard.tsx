@@ -3,8 +3,12 @@ import type { FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { MENU_THEMES } from '../../lib/menuThemes'
+import { uploadCafeImage } from '../../lib/storage'
 import type { MenuTheme } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label } from '../../components/ui'
+
+const ACCEPTED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_COVER_BYTES = 5 * 1024 * 1024
 
 // Her tema için küçük, gerçek ekran görüntüsü gerektirmeyen soyut önizleme —
 // düzenin şeklini (görsel var mı, ızgara mı liste mi, ortalı mı) anında anlatır.
@@ -61,7 +65,78 @@ export default function Dashboard() {
   const [themeBusy, setThemeBusy] = useState<MenuTheme | null>(null)
   const [themeError, setThemeError] = useState('')
 
+  // Karşılama sayfası — anahtar tema seçici gibi anında kaydedilir (cafe.menu_landing_enabled
+  // doğrudan okunur, ayrı bir yerel state tutulmaz); metin alanları kendi Kaydet'iyle kaydedilir.
+  const [coverImageUrl, setCoverImageUrl] = useState(cafe?.cover_image_url ?? '')
+  const [wifiSsid, setWifiSsid] = useState(cafe?.wifi_ssid ?? '')
+  const [wifiPassword, setWifiPassword] = useState(cafe?.wifi_password ?? '')
+  const [websiteUrl, setWebsiteUrl] = useState(cafe?.website_url ?? '')
+  const [coverBusy, setCoverBusy] = useState(false)
+  const [landingToggleBusy, setLandingToggleBusy] = useState(false)
+  const [landingBusy, setLandingBusy] = useState(false)
+  const [landingSaved, setLandingSaved] = useState(false)
+  const [landingError, setLandingError] = useState('')
+
   if (!cafe) return null
+
+  async function toggleLanding(enabled: boolean) {
+    setLandingError('')
+    setLandingToggleBusy(true)
+    const { error } = await supabase
+      .from('cafes')
+      .update({ menu_landing_enabled: enabled })
+      .eq('id', cafe!.id)
+    setLandingToggleBusy(false)
+    if (error) {
+      setLandingError(error.message)
+      return
+    }
+    await refreshCafe()
+  }
+
+  async function onCoverSelected(file: File | undefined) {
+    if (!file) return
+    if (!ACCEPTED_COVER_TYPES.includes(file.type)) {
+      setLandingError('Lütfen JPEG, PNG veya WebP formatında bir görsel seçin.')
+      return
+    }
+    if (file.size > MAX_COVER_BYTES) {
+      setLandingError('Görsel en fazla 5 MB olabilir.')
+      return
+    }
+    setLandingError('')
+    setCoverBusy(true)
+    try {
+      setCoverImageUrl(await uploadCafeImage(cafe!.id, file))
+    } catch (err) {
+      setLandingError(err instanceof Error ? err.message : 'Yükleme başarısız oldu.')
+    } finally {
+      setCoverBusy(false)
+    }
+  }
+
+  async function onLandingSubmit(e: FormEvent) {
+    e.preventDefault()
+    setLandingError('')
+    setLandingSaved(false)
+    setLandingBusy(true)
+    const { error } = await supabase
+      .from('cafes')
+      .update({
+        cover_image_url: coverImageUrl || null,
+        wifi_ssid: wifiSsid || null,
+        wifi_password: wifiPassword || null,
+        website_url: websiteUrl || null,
+      })
+      .eq('id', cafe!.id)
+    setLandingBusy(false)
+    if (error) {
+      setLandingError(error.message)
+      return
+    }
+    setLandingSaved(true)
+    await refreshCafe()
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -163,6 +238,91 @@ export default function Dashboard() {
           })}
         </div>
         <ErrorText>{themeError}</ErrorText>
+      </Card>
+
+      <Card className="mt-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-ink">Karşılama Sayfası</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Açarsanız QR okutan müşteri önce bu sayfayı görür: kapak görseli, WiFi, sosyal medya
+              ve konum — "Menüye Git" ile asıl menüye geçer. Kapalıyken QR direkt menüye gider.
+            </p>
+          </div>
+          <label
+            className={`relative inline-flex min-h-11 min-w-11 shrink-0 touch-manipulation items-center ${landingToggleBusy ? 'opacity-60' : ''}`}
+          >
+            <input
+              type="checkbox"
+              checked={cafe.menu_landing_enabled}
+              onChange={(e) => toggleLanding(e.target.checked)}
+              disabled={landingToggleBusy}
+              className="peer sr-only"
+            />
+            <span className="h-6 w-11 rounded-full bg-line transition-colors peer-checked:bg-cobalt" />
+            <span className="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+          </label>
+        </div>
+        {!cafe.menu_landing_enabled && <ErrorText>{landingError}</ErrorText>}
+
+        {cafe.menu_landing_enabled && (
+          <form onSubmit={onLandingSubmit} className="mt-4 space-y-4 border-t border-line pt-4">
+            <div>
+              <Label>Kapak Görseli</Label>
+              {coverImageUrl ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={coverImageUrl}
+                    alt=""
+                    className="h-20 w-28 rounded-lg border border-line object-cover"
+                  />
+                  <Button type="button" variant="secondary" onClick={() => setCoverImageUrl('')}>
+                    Kaldır
+                  </Button>
+                </div>
+              ) : (
+                <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover:border-cobalt">
+                  {coverBusy ? 'Yükleniyor…' : 'Görsel seç'}
+                  <input
+                    type="file"
+                    accept={ACCEPTED_COVER_TYPES.join(',')}
+                    className="sr-only"
+                    onChange={(e) => onCoverSelected(e.target.files?.[0])}
+                    disabled={coverBusy}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>WiFi Ağ Adı</Label>
+                <Input value={wifiSsid} onChange={(e) => setWifiSsid(e.target.value)} placeholder="Örn: Kafe-Misafir" />
+              </div>
+              <div>
+                <Label>WiFi Şifresi</Label>
+                <Input value={wifiPassword} onChange={(e) => setWifiPassword(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label>Web Sitesi / Diğer Bağlantı</Label>
+              <Input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://…"
+              />
+            </div>
+            <p className="text-xs text-ink-soft">
+              Instagram ve telefon, yukarıdaki Kafe Bilgileri'nden çekilir. Adres girildiyse
+              karşılama sayfasında bir "Yol tarifi al" bağlantısı otomatik eklenir.
+            </p>
+            <ErrorText>{landingError}</ErrorText>
+            {landingSaved && <p className="text-sm text-teal-deep">Kaydedildi.</p>}
+            <Button type="submit" disabled={landingBusy || coverBusy}>
+              {landingBusy ? 'Kaydediliyor…' : 'Kaydet'}
+            </Button>
+          </form>
+        )}
       </Card>
 
       <Card className="mt-4 border-line bg-cobalt-soft">
