@@ -137,42 +137,54 @@ export default function PublicMenu() {
             </h2>
             <ul className="space-y-5">
               {cat.items.map((item) => (
-                <li key={item.id}>
-                  <div className="flex items-baseline">
-                    <h3 className="min-w-0 font-semibold break-words text-ink">{item.name}</h3>
-                    <span className="dot-leader" aria-hidden />
-                    <span className="font-display shrink-0 font-bold text-cobalt">
-                      ₺{Number(item.price).toFixed(2)}
-                    </span>
-                  </div>
-                  {item.description && (
-                    <p className="mt-0.5 text-sm text-ink-soft">{item.description}</p>
+                <li key={item.id} className="flex gap-3">
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt=""
+                      width={80}
+                      height={80}
+                      loading="lazy"
+                      className="h-20 w-20 shrink-0 rounded-lg border border-line object-cover"
+                    />
                   )}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-                    {item.kcal != null && (
-                      <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-medium text-ink-soft">
-                        {item.kcal} kcal
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline">
+                      <h3 className="min-w-0 font-semibold break-words text-ink">{item.name}</h3>
+                      <span className="dot-leader" aria-hidden />
+                      <span className="font-display shrink-0 font-bold text-cobalt">
+                        ₺{Number(item.price).toFixed(2)}
                       </span>
+                    </div>
+                    {item.description && (
+                      <p className="mt-0.5 text-sm text-ink-soft">{item.description}</p>
                     )}
-                    {item.contains_alcohol && (
-                      <span className="rounded-md bg-cobalt-soft px-2 py-0.5 font-medium text-cobalt-deep">
-                        Alkollü
-                      </span>
-                    )}
-                    {item.contains_pork && (
-                      <span className="rounded-md bg-coral-soft px-2 py-0.5 font-medium text-coral-deep">
-                        Domuz ürünü
-                      </span>
-                    )}
-                    {item.allergens.map((a) => (
-                      <span
-                        key={a}
-                        title={`${ALLERGENS[a].label}: ${ALLERGENS[a].description}`}
-                        className="rounded-md border border-coral-soft bg-coral-soft/60 px-2 py-0.5 text-coral-deep"
-                      >
-                        {ALLERGENS[a].icon} {ALLERGENS[a].label}
-                      </span>
-                    ))}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                      {item.kcal != null && (
+                        <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-medium text-ink-soft">
+                          {item.kcal} kcal
+                        </span>
+                      )}
+                      {item.contains_alcohol && (
+                        <span className="rounded-md bg-cobalt-soft px-2 py-0.5 font-medium text-cobalt-deep">
+                          Alkollü
+                        </span>
+                      )}
+                      {item.contains_pork && (
+                        <span className="rounded-md bg-coral-soft px-2 py-0.5 font-medium text-coral-deep">
+                          Domuz ürünü
+                        </span>
+                      )}
+                      {item.allergens.map((a) => (
+                        <span
+                          key={a}
+                          title={`${ALLERGENS[a].label}: ${ALLERGENS[a].description}`}
+                          className="rounded-md border border-coral-soft bg-coral-soft/60 px-2 py-0.5 text-coral-deep"
+                        >
+                          {ALLERGENS[a].icon} {ALLERGENS[a].label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </li>
               ))}

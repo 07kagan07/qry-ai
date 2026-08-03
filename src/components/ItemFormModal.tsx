@@ -49,8 +49,6 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
 
   // Görsel durumu
   const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null)
-  const [imagePrompt, setImagePrompt] = useState('')
-  const [imageStyleNote, setImageStyleNote] = useState('')
   const [imagePreview, setImagePreview] = useState<{ base64: string; mimeType: string } | null>(null)
   const [imgBusy, setImgBusy] = useState<'idle' | 'prompting' | 'generating' | 'uploading'>('idle')
   const [imgError, setImgError] = useState('')
@@ -109,37 +107,23 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
     }
   }
 
-  async function suggestImagePrompt() {
+  // Prompt üretimi ve görsel üretimi arka arkaya, kullanıcıya prompt hiç
+  // gösterilmeden çalışır — işletmeci sadece sonucu görür.
+  async function runGenerateImage() {
     if (!name.trim()) {
       setImgError('Önce ürün adını girin.')
       return
     }
     setImgError('')
-    setImgBusy('prompting')
     try {
-      const r = await generateImagePrompt({
+      setImgBusy('prompting')
+      const p = await generateImagePrompt({
         name,
         description: description || undefined,
         ingredients: ingredients || undefined,
       })
-      setImagePrompt(r.prompt)
-      setImageStyleNote(r.style_note)
-    } catch (err) {
-      setImgError(err instanceof Error ? err.message : 'Prompt oluşturulamadı.')
-    } finally {
-      setImgBusy('idle')
-    }
-  }
-
-  async function runGenerateImage() {
-    if (!imagePrompt.trim()) {
-      setImgError('Önce bir prompt oluşturun ya da yazın.')
-      return
-    }
-    setImgError('')
-    setImgBusy('generating')
-    try {
-      const r = await generateItemImage(imagePrompt.trim())
+      setImgBusy('generating')
+      const r = await generateItemImage(p.prompt)
       setImagePreview({ base64: r.image, mimeType: r.mime_type })
     } catch (err) {
       setImgError(err instanceof Error ? err.message : 'Görsel üretilemedi.')
@@ -156,8 +140,6 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
       const url = await uploadGeneratedImage(cafe.id, imagePreview.base64, imagePreview.mimeType)
       setImageUrl(url)
       setImagePreview(null)
-      setImagePrompt('')
-      setImageStyleNote('')
     } catch (err) {
       setImgError(err instanceof Error ? err.message : 'Görsel kaydedilemedi.')
     } finally {
@@ -289,7 +271,7 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
                     {imgBusy === 'uploading' ? 'Kaydediliyor…' : 'Bu görseli kullan'}
                   </Button>
                   <Button type="button" variant="secondary" onClick={runGenerateImage} disabled={imgLoading}>
-                    {imgBusy === 'generating' ? 'Oluşturuluyor…' : 'Yeniden oluştur'}
+                    {imgBusy !== 'idle' ? 'Oluşturuluyor…' : 'Yeniden oluştur'}
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => setImagePreview(null)} disabled={imgLoading}>
                     Vazgeç
@@ -310,35 +292,18 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
                 </label>
 
                 <div className="border-t border-line pt-3">
-                  {!imagePrompt ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={suggestImagePrompt}
-                      disabled={imgLoading || !name.trim()}
-                    >
-                      {imgBusy === 'prompting' ? 'Prompt oluşturuluyor…' : '✨ AI ile görsel oluştur'}
-                    </Button>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label>AI görsel prompt'u (isterseniz düzenleyin)</Label>
-                      <Textarea
-                        rows={3}
-                        value={imagePrompt}
-                        onChange={(e) => setImagePrompt(e.target.value)}
-                        className="text-xs"
-                      />
-                      {imageStyleNote && <p className="text-xs text-ink-soft">{imageStyleNote}</p>}
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" onClick={runGenerateImage} disabled={imgLoading}>
-                          {imgBusy === 'generating' ? 'Görsel oluşturuluyor…' : 'Bu prompt ile görsel oluştur'}
-                        </Button>
-                        <Button type="button" variant="ghost" onClick={suggestImagePrompt} disabled={imgLoading}>
-                          Farklı prompt öner
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={runGenerateImage}
+                    disabled={imgLoading || !name.trim()}
+                  >
+                    {imgBusy === 'prompting'
+                      ? 'Hazırlanıyor…'
+                      : imgBusy === 'generating'
+                        ? 'Görsel oluşturuluyor…'
+                        : '✨ AI ile görsel oluştur'}
+                  </Button>
                 </div>
                 <ErrorText>{imgError}</ErrorText>
               </div>
