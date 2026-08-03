@@ -23,14 +23,17 @@ export default function AllergenPicker({ value, onChange }: Props) {
             title={a.description}
             onClick={() => toggle(a.key)}
             aria-pressed={active}
-            className={`flex min-h-11 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${
+            className={`flex min-h-11 touch-manipulation items-start gap-1.5 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors active:scale-[0.98] ${
               active
                 ? 'border-coral bg-coral-soft font-semibold text-coral-deep'
                 : 'border-line bg-surface text-ink-soft hover:border-line-strong'
             }`}
           >
-            <span aria-hidden>{a.icon}</span>
-            <span className="truncate">{a.label}</span>
+            <span aria-hidden className="shrink-0">
+              {a.icon}
+            </span>
+            {/* Alerjen adı asla kesilmez — mevzuat gereği tam okunabilir olmalı */}
+            <span className="min-w-0">{a.label}</span>
           </button>
         )
       })}

@@ -176,13 +176,16 @@ export default function ImportMenu() {
       </p>
 
       <Card>
-        <input
-          type="file"
-          accept={ACCEPTED.join(',')}
-          onChange={(e) => onFile(e.target.files?.[0])}
-          disabled={analyzing}
-          className="text-sm"
-        />
+        <label className="inline-flex min-h-11 w-full touch-manipulation cursor-pointer items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:border-cobalt active:bg-cobalt-soft sm:w-auto">
+          Menü fotoğrafı seç
+          <input
+            type="file"
+            accept={ACCEPTED.join(',')}
+            onChange={(e) => onFile(e.target.files?.[0])}
+            disabled={analyzing}
+            className="sr-only"
+          />
+        </label>
         {analyzing && <Spinner label="Fotoğraf analiz ediliyor… (15-30 sn sürebilir)" />}
       </Card>
 
@@ -203,22 +206,25 @@ export default function ImportMenu() {
               <h2 className="mb-2 font-semibold">{cat.name}</h2>
               <ul className="space-y-1">
                 {cat.items.map((item, ii) => (
-                  <li key={ii} className="flex items-center gap-2">
+                  <li key={ii} className="flex items-center gap-1.5">
                     <input
                       value={item.name}
                       onChange={(e) => updateItem(ci, ii, 'name', e.target.value)}
-                      className="flex-1 rounded border border-line px-2 py-1 text-sm"
+                      aria-label="Ürün adı"
+                      className="min-h-10 min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm"
                     />
                     <input
                       value={item.price ?? ''}
                       onChange={(e) => updateItem(ci, ii, 'price', e.target.value)}
                       placeholder="₺"
-                      className="w-20 rounded border border-line px-2 py-1 text-sm"
+                      aria-label="Fiyat"
+                      inputMode="decimal"
+                      className="min-h-10 w-16 shrink-0 rounded border border-line px-2 py-1 text-sm"
                     />
                     <button
                       type="button"
                       onClick={() => removeItem(ci, ii)}
-                      className="min-h-9 min-w-9 text-ink-soft hover:text-coral-deep"
+                      className="flex min-h-10 min-w-10 shrink-0 touch-manipulation items-center justify-center rounded text-ink-soft hover:bg-coral-soft hover:text-coral-deep active:bg-coral-soft"
                       aria-label={`${item.name} satırını kaldır`}
                       title="Kaldır"
                     >

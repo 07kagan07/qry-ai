@@ -47,17 +47,30 @@ export default function QrPage() {
       )}
 
       <Card className="flex flex-col items-center gap-4">
-        <div ref={wrapperRef} className="rounded-lg bg-white p-4">
-          <QRCodeCanvas value={url} size={280} level="M" includeMargin />
+        {/* 200px: en dar telefonlarda (320px genişlik) bile Card+sayfa dolgusu
+            içinde yatay taşma olmadan sığar; taranabilirlik için yeterli. */}
+        <div ref={wrapperRef} className="rounded-lg bg-white p-3">
+          <QRCodeCanvas value={url} size={200} level="M" includeMargin />
         </div>
-        <p className="break-all text-center text-sm text-ink-soft">{url}</p>
+        <p className="w-full break-all text-center text-sm text-ink-soft">{url}</p>
         <div className="w-full max-w-xs">
           <Label>Masa numarası (isteğe bağlı)</Label>
-          <Input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Örn: 5" />
+          <Input
+            value={table}
+            onChange={(e) => setTable(e.target.value)}
+            placeholder="Örn: 5"
+            inputMode="numeric"
+          />
         </div>
-        <div className="flex gap-2">
-          <Button onClick={download}>PNG olarak indir</Button>
-          <Button variant="secondary" onClick={() => window.open(`/menu/${cafe.slug}/yazdir`, '_blank')}>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button onClick={download} className="w-full sm:w-auto">
+            PNG olarak indir
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => window.open(`/menu/${cafe.slug}/yazdir`, '_blank')}
+            className="w-full sm:w-auto"
+          >
             Yazdırılabilir menü
           </Button>
         </div>

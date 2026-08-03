@@ -43,7 +43,7 @@ export default function PanelLayout() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `min-h-11 shrink-0 border-b-[3px] px-3 py-2.5 text-sm font-semibold transition-colors ${
+                `min-h-11 shrink-0 touch-manipulation border-b-[3px] px-3 py-2.5 text-sm font-semibold transition-colors ${
                   isActive
                     ? 'border-white text-white'
                     : 'border-transparent text-white/60 hover:text-white'

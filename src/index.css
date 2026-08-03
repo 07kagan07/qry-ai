@@ -29,9 +29,21 @@
   --color-coral-soft: #fbe9e2;
 }
 
+html,
+body {
+  /* %90 mobil kullanım: yanlışlıkla oluşan yatay kaydırmayı kökten engelle
+     (kaynağı da tek tek düzeltiyoruz, bu son bir güvenlik ağı). */
+  overflow-x: hidden;
+}
+
 body {
   @apply bg-porcelain text-ink antialiased;
   font-family: var(--font-sans);
+  /* Dokunmatik cihazlarda çift dokunmalı yakınlaştırma gecikmesini kaldırır. */
+  touch-action: manipulation;
+  /* iOS/Android'in varsayılan gri dokunma vurgusunu kapat; geri bildirimi
+     kendi active: durumlarımızla veriyoruz. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import type { Category, MenuItem } from '../../lib/types'
@@ -14,6 +14,13 @@ export default function MenuManager() {
   const [error, setError] = useState('')
   const [newCategoryName, setNewCategoryName] = useState('')
   const [modal, setModal] = useState<{ categoryId: string; item?: MenuItem } | null>(null)
+  const [openCategoryMenu, setOpenCategoryMenu] = useState<string | null>(null)
+  const [openItemMenu, setOpenItemMenu] = useState<string | null>(null)
+
+  const closeMenus = () => {
+    setOpenCategoryMenu(null)
+    setOpenItemMenu(null)
+  }
 
   const load = useCallback(async () => {
     if (!cafe) return
@@ -100,6 +107,7 @@ export default function MenuManager() {
       contains_alcohol: draft.contains_alcohol,
       contains_pork: draft.contains_pork,
       ai_suggested: draft.ai_suggested,
+      image_url: draft.image_url,
     }
     const q = existing
       ? supabase.from('menu_items').update(payload).eq('id', existing.id)
@@ -126,7 +134,9 @@ export default function MenuManager() {
           placeholder="Yeni kategori adı (örn: Sıcak İçecekler)"
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
         />
-        <Button onClick={addCategory}>Ekle</Button>
+        <Button onClick={addCategory} className="shrink-0">
+          Ekle
+        </Button>
       </div>
 
       {categories.length === 0 && (
@@ -141,27 +151,69 @@ export default function MenuManager() {
         </Card>
       )}
 
+      {/* Açık bir dokunma menüsü varken başka yere dokunulunca kapatır */}
+      {(openCategoryMenu || openItemMenu) && (
+        <div className="fixed inset-0 z-10" onClick={closeMenus} aria-hidden />
+      )}
+
       <div className="space-y-6">
         {categories.map((cat) => {
           const catItems = items.filter((i) => i.category_id === cat.id)
           return (
             <Card key={cat.id}>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold">{cat.name}</h2>
-                <div className="flex gap-1">
-                  <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => renameCategory(cat)}>
-                    Yeniden adlandır
-                  </Button>
-                  <Button variant="ghost" className="!px-2 !py-1 text-xs text-coral-deep" onClick={() => deleteCategory(cat)}>
-                    Sil
-                  </Button>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="min-w-0 truncate font-semibold">{cat.name}</h2>
+                <div className="flex shrink-0 items-center gap-1">
                   <Button
                     variant="secondary"
-                    className="!px-2 !py-1 text-xs"
+                    className="!px-3 !py-1.5 text-xs"
                     onClick={() => setModal({ categoryId: cat.id })}
                   >
-                    + Ürün Ekle
+                    + Ürün
                   </Button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-label={`${cat.name} kategorisi için diğer işlemler`}
+                      aria-haspopup="menu"
+                      aria-expanded={openCategoryMenu === cat.id}
+                      onClick={() =>
+                        setOpenCategoryMenu(openCategoryMenu === cat.id ? null : cat.id)
+                      }
+                      className="relative z-20 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-ink-soft hover:bg-cobalt-soft hover:text-cobalt-deep active:bg-cobalt-soft"
+                    >
+                      ⋯
+                    </button>
+                    {openCategoryMenu === cat.id && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-line bg-surface shadow-lg"
+                      >
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => {
+                            closeMenus()
+                            renameCategory(cat)
+                          }}
+                          className="block min-h-11 w-full px-4 text-left text-sm hover:bg-porcelain"
+                        >
+                          Yeniden adlandır
+                        </button>
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => {
+                            closeMenus()
+                            deleteCategory(cat)
+                          }}
+                          className="block min-h-11 w-full px-4 text-left text-sm text-coral-deep hover:bg-coral-soft"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               {catItems.length === 0 ? (
@@ -169,58 +221,119 @@ export default function MenuManager() {
               ) : (
                 <ul className="divide-y divide-line">
                   {catItems.map((item) => (
-                    <li key={item.id} className="flex items-center gap-3 py-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`font-medium ${item.is_active ? '' : 'text-ink-soft line-through'}`}>
-                            {item.name}
-                          </span>
-                          <span className="text-sm text-ink-soft">₺{Number(item.price).toFixed(2)}</span>
-                          {item.kcal != null ? (
-                            <span className="rounded border border-line bg-surface px-1.5 py-0.5 text-xs text-ink-soft">
-                              {item.kcal} kcal
-                            </span>
-                          ) : (
-                            <span className="rounded bg-coral-soft px-1.5 py-0.5 text-xs text-coral-deep" title="Mevzuat gereği kalori beyanı gerekiyor">
-                              kcal eksik
-                            </span>
-                          )}
-                          {item.ai_suggested && !item.ai_suggested.approved && (
-                            <span
-                              className="rounded bg-coral-soft px-1.5 py-0.5 text-xs font-medium text-coral-deep"
-                              title="Beyanlar AI tarafından dolduruldu; düzenleyip kaydettiğinizde onaylanmış sayılır"
-                            >
-                              AI önerisi — kontrol edin
-                            </span>
-                          )}
-                          {item.contains_alcohol && <span title="Alkol içerir">🍷</span>}
-                          {item.contains_pork && <span title="Domuz ürünü içerir">🥓</span>}
-                          <span className="text-sm">
-                            {item.allergens.map((a) => (
-                              <span key={a} title={ALLERGENS[a].label}>
-                                {ALLERGENS[a].icon}
-                              </span>
-                            ))}
-                          </span>
-                        </div>
-                        {item.description && (
-                          <p className="truncate text-xs text-ink-soft">{item.description}</p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => toggleItem(item)}>
-                          {item.is_active ? 'Gizle' : 'Göster'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="!px-2 !py-1 text-xs"
-                          onClick={() => setModal({ categoryId: cat.id, item })}
+                    <li key={item.id} className="flex items-center gap-2 py-1">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt=""
+                          className="h-11 w-11 shrink-0 rounded-md border border-line object-cover"
+                        />
+                      ) : (
+                        <span
+                          className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md border border-dashed border-line-strong text-center text-[10px] font-medium leading-tight text-ink-soft"
+                          title="Görsel eklenmemiş"
                         >
-                          Düzenle
-                        </Button>
-                        <Button variant="ghost" className="!px-2 !py-1 text-xs text-coral-deep" onClick={() => deleteItem(item)}>
-                          Sil
-                        </Button>
+                          Görsel
+                          <br />
+                          yok
+                        </span>
+                      )}
+                      {/* Satıra dokunmak düzenlemeyi açar — mobilde en sık kullanılan işlem */}
+                      <button
+                        type="button"
+                        onClick={() => setModal({ categoryId: cat.id, item })}
+                        className="flex min-w-0 flex-1 touch-manipulation items-center gap-2 rounded-lg py-2 pr-1 text-left transition-colors hover:bg-porcelain active:bg-porcelain"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`font-medium ${item.is_active ? '' : 'text-ink-soft line-through'}`}
+                            >
+                              {item.name}
+                            </span>
+                            <span className="text-sm text-ink-soft">
+                              ₺{Number(item.price).toFixed(2)}
+                            </span>
+                            {item.kcal != null ? (
+                              <span className="rounded border border-line bg-surface px-1.5 py-0.5 text-xs text-ink-soft">
+                                {item.kcal} kcal
+                              </span>
+                            ) : (
+                              <span
+                                className="rounded bg-coral-soft px-1.5 py-0.5 text-xs text-coral-deep"
+                                title="Mevzuat gereği kalori beyanı gerekiyor"
+                              >
+                                kcal eksik
+                              </span>
+                            )}
+                            {item.ai_suggested && !item.ai_suggested.approved && (
+                              <span
+                                className="rounded bg-coral-soft px-1.5 py-0.5 text-xs font-medium text-coral-deep"
+                                title="Beyanlar AI tarafından dolduruldu; düzenleyip kaydettiğinizde onaylanmış sayılır"
+                              >
+                                AI önerisi — kontrol edin
+                              </span>
+                            )}
+                            {item.contains_alcohol && <span title="Alkol içerir">🍷</span>}
+                            {item.contains_pork && <span title="Domuz ürünü içerir">🥓</span>}
+                            <span className="text-sm">
+                              {item.allergens.map((a) => (
+                                <span key={a} title={ALLERGENS[a].label}>
+                                  {ALLERGENS[a].icon}
+                                </span>
+                              ))}
+                            </span>
+                          </span>
+                          {item.description && (
+                            <span className="mt-0.5 block truncate text-xs text-ink-soft">
+                              {item.description}
+                            </span>
+                          )}
+                        </span>
+                        <span aria-hidden className="shrink-0 text-ink-soft">
+                          ›
+                        </span>
+                      </button>
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          aria-label={`${item.name} için diğer işlemler`}
+                          aria-haspopup="menu"
+                          aria-expanded={openItemMenu === item.id}
+                          onClick={() => setOpenItemMenu(openItemMenu === item.id ? null : item.id)}
+                          className="relative z-20 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-ink-soft hover:bg-cobalt-soft hover:text-cobalt-deep active:bg-cobalt-soft"
+                        >
+                          ⋯
+                        </button>
+                        {openItemMenu === item.id && (
+                          <div
+                            role="menu"
+                            className="absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-lg border border-line bg-surface shadow-lg"
+                          >
+                            <button
+                              role="menuitem"
+                              type="button"
+                              onClick={() => {
+                                closeMenus()
+                                toggleItem(item)
+                              }}
+                              className="block min-h-11 w-full px-4 text-left text-sm hover:bg-porcelain"
+                            >
+                              {item.is_active ? 'Gizle' : 'Göster'}
+                            </button>
+                            <button
+                              role="menuitem"
+                              type="button"
+                              onClick={() => {
+                                closeMenus()
+                                deleteItem(item)
+                              }}
+                              className="block min-h-11 w-full px-4 text-left text-sm text-coral-deep hover:bg-coral-soft"
+                            >
+                              Sil
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </li>
                   ))}

@@ -4,6 +4,10 @@
 //   supabase secrets set GEMINI_API_KEY=AIza...
 
 export const MODEL = 'gemini-2.5-flash'
+// Görsel üretim modeli — ÜCRETSİZ KATMANI YOKTUR. Bu modeli çağırmak için
+// GEMINI_API_KEY'in bağlı olduğu Google Cloud projesinde faturalandırma etkin
+// olmalıdır (bkz. https://aistudio.google.com/apikey -> proje ayarları).
+export const IMAGE_MODEL = 'gemini-3.1-flash-image'
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
@@ -84,6 +88,61 @@ export async function generateJson<T>(
   }
 
   return JSON.parse(text) as T
+}
+
+export interface GeneratedImage {
+  base64: string
+  mimeType: string
+}
+
+/**
+ * Metin promptundan görsel üretir (Gemini native image generation).
+ * Ücretsiz katmanı yoktur — bkz. IMAGE_MODEL yorumu.
+ */
+export async function generateImage(prompt: string): Promise<GeneratedImage> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY tanımlı değil. `supabase secrets set GEMINI_API_KEY=...` ile ekleyin.')
+  }
+
+  const res = await fetch(`${API_BASE}/${IMAGE_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['IMAGE'] },
+    }),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text()
+    if (res.status === 429) {
+      throw new Error(
+        'Görsel üretim kotası doldu ya da bu model için faturalandırma etkin değil. ' +
+          'Google Cloud projenizde faturalandırmayı kontrol edin (aistudio.google.com/apikey).',
+      )
+    }
+    throw new Error(`Görsel üretim hatası (${res.status}): ${errText.slice(0, 300)}`)
+  }
+
+  const data = await res.json()
+  if (data.promptFeedback?.blockReason) {
+    throw new Error(`İstek AI tarafından engellendi (${data.promptFeedback.blockReason}).`)
+  }
+
+  const candidate = data.candidates?.[0]
+  const imgPart = candidate?.content?.parts?.find(
+    (p: { inlineData?: { data?: string; mimeType?: string } }) => p.inlineData?.data,
+  )
+  if (!imgPart?.inlineData?.data) {
+    const reason = candidate?.finishReason ?? 'bilinmiyor'
+    throw new Error(`Görsel üretilemedi (sebep: ${reason}). Prompt'u değiştirip tekrar deneyin.`)
+  }
+
+  return {
+    base64: imgPart.inlineData.data,
+    mimeType: imgPart.inlineData.mimeType ?? 'image/png',
+  }
 }
 
 export const ALLERGEN_ENUM = [

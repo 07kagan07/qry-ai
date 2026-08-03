@@ -92,6 +92,26 @@ export async function generateDescription(name: string, ingredients?: string) {
   return result.description
 }
 
+export interface ImagePromptResult {
+  prompt: string
+  style_note: string
+}
+
+/** Ürün bilgilerinden görsel üretim modeline verilecek optimize bir prompt üretir (ücretsiz). */
+export async function generateImagePrompt(input: {
+  name: string
+  description?: string
+  ingredients?: string
+  category?: string
+}) {
+  return invoke<ImagePromptResult>('ai-image-prompt', input)
+}
+
+/** Verilen prompt'tan ürün görseli üretir. ÜCRETLİ bir işlemdir. */
+export async function generateItemImage(prompt: string) {
+  return invoke<{ image: string; mime_type: string }>('ai-generate-image', { prompt })
+}
+
 /** Ürün metinlerini hedef dile çevir */
 export async function translateItems(
   items: { id: string; name: string; description: string | null }[],

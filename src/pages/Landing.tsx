@@ -40,10 +40,8 @@ export default function Landing() {
         <p className="text-xs font-semibold tracking-[0.25em] text-ink-soft uppercase">
           Kafeler için QR menü
         </p>
-        <h1 className="font-display mt-3 text-4xl font-extrabold tracking-tight text-cobalt sm:text-5xl">
-          Menünüz yeni mevzuata
-          <br />
-          hazır mı?
+        <h1 className="font-display mt-3 text-pretty text-4xl leading-tight font-extrabold tracking-tight text-cobalt sm:text-5xl">
+          Menünüz yeni mevzuata hazır mı?
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-ink-soft">
           Türk Gıda Kodeksi artık menülerde <strong className="text-ink">14 majör alerjen</strong> ve{' '}
@@ -51,18 +49,18 @@ export default function Landing() {
           zeka beyanları önersin — siz kontrol edip onaylayın.
         </p>
 
-        <div className="mt-8 flex justify-center gap-3">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           {user ? (
-            <Link to="/panel">
-              <Button className="px-6">Panele git</Button>
+            <Link to="/panel" className="sm:w-auto">
+              <Button className="w-full px-6 sm:w-auto">Panele git</Button>
             </Link>
           ) : (
             <>
-              <Link to="/kayit">
-                <Button className="px-6">Ücretsiz başla</Button>
+              <Link to="/kayit" className="sm:w-auto">
+                <Button className="w-full px-6 sm:w-auto">Ücretsiz başla</Button>
               </Link>
-              <Link to="/giris">
-                <Button variant="secondary" className="px-6">
+              <Link to="/giris" className="sm:w-auto">
+                <Button variant="secondary" className="w-full px-6 sm:w-auto">
                   Giriş yap
                 </Button>
               </Link>
@@ -106,10 +104,10 @@ export default function Landing() {
               { date: '31 Aralık 2026', who: 'Aynı ilde 3 ve üzeri şubesi olan işletmeler' },
               { date: '31 Aralık 2027', who: 'Kalori beyanı — tüm işletmeler için son tarih' },
             ].map((row) => (
-              <li key={row.date} className="flex items-baseline gap-3">
-                <span className="font-display shrink-0 font-bold text-cobalt">{row.date}</span>
-                <span className="dot-leader" aria-hidden />
-                <span className="text-right text-ink-soft">{row.who}</span>
+              <li key={row.date} className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+                <span className="font-display font-bold text-cobalt sm:shrink-0">{row.date}</span>
+                <span className="dot-leader hidden sm:block" aria-hidden />
+                <span className="text-ink-soft sm:text-right">{row.who}</span>
               </li>
             ))}
           </ol>

@@ -1,8 +1,10 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useAuth } from '../context/AuthContext'
 import type { AllergenKey } from '../lib/allergens'
 import type { AiSuggestion, MenuItem } from '../lib/types'
-import { analyzeItem, generateDescription } from '../lib/ai'
+import { analyzeItem, generateDescription, generateImagePrompt, generateItemImage } from '../lib/ai'
+import { uploadGeneratedImage, uploadItemImage } from '../lib/storage'
 import AllergenPicker from './AllergenPicker'
 import { Button, ErrorText, Input, Label, Textarea } from './ui'
 
@@ -15,6 +17,7 @@ export interface ItemDraft {
   contains_alcohol: boolean
   contains_pork: boolean
   ai_suggested: AiSuggestion | null
+  image_url: string | null
 }
 
 interface Props {
@@ -24,7 +27,11 @@ interface Props {
   onClose: () => void
 }
 
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
 export default function ItemFormModal({ title, initial, onSave, onClose }: Props) {
+  const { cafe } = useAuth()
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [ingredients, setIngredients] = useState('')
@@ -39,6 +46,14 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
   const [busy, setBusy] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
   const [descBusy, setDescBusy] = useState(false)
+
+  // Görsel durumu
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null)
+  const [imagePrompt, setImagePrompt] = useState('')
+  const [imageStyleNote, setImageStyleNote] = useState('')
+  const [imagePreview, setImagePreview] = useState<{ base64: string; mimeType: string } | null>(null)
+  const [imgBusy, setImgBusy] = useState<'idle' | 'prompting' | 'generating' | 'uploading'>('idle')
+  const [imgError, setImgError] = useState('')
 
   async function runAiAnalyze() {
     if (!name.trim()) {
@@ -94,6 +109,83 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
     }
   }
 
+  async function suggestImagePrompt() {
+    if (!name.trim()) {
+      setImgError('Önce ürün adını girin.')
+      return
+    }
+    setImgError('')
+    setImgBusy('prompting')
+    try {
+      const r = await generateImagePrompt({
+        name,
+        description: description || undefined,
+        ingredients: ingredients || undefined,
+      })
+      setImagePrompt(r.prompt)
+      setImageStyleNote(r.style_note)
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : 'Prompt oluşturulamadı.')
+    } finally {
+      setImgBusy('idle')
+    }
+  }
+
+  async function runGenerateImage() {
+    if (!imagePrompt.trim()) {
+      setImgError('Önce bir prompt oluşturun ya da yazın.')
+      return
+    }
+    setImgError('')
+    setImgBusy('generating')
+    try {
+      const r = await generateItemImage(imagePrompt.trim())
+      setImagePreview({ base64: r.image, mimeType: r.mime_type })
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : 'Görsel üretilemedi.')
+    } finally {
+      setImgBusy('idle')
+    }
+  }
+
+  async function useGeneratedImage() {
+    if (!imagePreview || !cafe) return
+    setImgError('')
+    setImgBusy('uploading')
+    try {
+      const url = await uploadGeneratedImage(cafe.id, imagePreview.base64, imagePreview.mimeType)
+      setImageUrl(url)
+      setImagePreview(null)
+      setImagePrompt('')
+      setImageStyleNote('')
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : 'Görsel kaydedilemedi.')
+    } finally {
+      setImgBusy('idle')
+    }
+  }
+
+  async function onFileSelected(file: File | undefined) {
+    if (!file || !cafe) return
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setImgError('Lütfen JPEG, PNG veya WebP formatında bir görsel seçin.')
+      return
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImgError('Görsel en fazla 5 MB olabilir.')
+      return
+    }
+    setImgError('')
+    setImgBusy('uploading')
+    try {
+      setImageUrl(await uploadItemImage(cafe.id, file))
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : 'Yükleme başarısız oldu.')
+    } finally {
+      setImgBusy('idle')
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -114,6 +206,7 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
         contains_pork: containsPork,
         // Kaydetme = işletmeci onayı
         ai_suggested: aiSuggestion ? { ...aiSuggestion, approved: true } : null,
+        image_url: imageUrl,
       })
       onClose()
     } catch (err) {
@@ -123,12 +216,22 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
     }
   }
 
+  const imgLoading = imgBusy !== 'idle'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-      <div className="my-8 w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
+      style={{ overscrollBehavior: 'contain' }}
+    >
+      <div className="my-4 w-full max-w-lg rounded-xl bg-white p-4 shadow-xl sm:my-8 sm:p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Kapat" className="min-h-11 min-w-11 text-ink-soft hover:text-ink">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Kapat"
+            className="flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-lg text-ink-soft hover:bg-porcelain hover:text-ink active:bg-porcelain"
+          >
             ✕
           </button>
         </div>
@@ -159,6 +262,89 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
               placeholder="Örn: antep fıstığı, yufka, tereyağı, şerbet"
             />
           </div>
+
+          {/* Görsel */}
+          <div>
+            <Label>Görsel</Label>
+            {imageUrl ? (
+              <div className="flex items-center gap-3">
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="h-24 w-24 rounded-lg border border-line object-cover"
+                />
+                <Button type="button" variant="secondary" onClick={() => setImageUrl(null)}>
+                  Görseli kaldır
+                </Button>
+              </div>
+            ) : imagePreview ? (
+              <div className="space-y-2">
+                <img
+                  src={`data:${imagePreview.mimeType};base64,${imagePreview.base64}`}
+                  alt="AI tarafından üretilen ürün görseli önizlemesi"
+                  className="h-40 w-40 rounded-lg border border-line object-cover"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={useGeneratedImage} disabled={imgLoading}>
+                    {imgBusy === 'uploading' ? 'Kaydediliyor…' : 'Bu görseli kullan'}
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={runGenerateImage} disabled={imgLoading}>
+                    {imgBusy === 'generating' ? 'Oluşturuluyor…' : 'Yeniden oluştur'}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setImagePreview(null)} disabled={imgLoading}>
+                    Vazgeç
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-lg border border-line bg-porcelain p-3">
+                <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover:border-cobalt">
+                  Kendi görselinizi yükleyin
+                  <input
+                    type="file"
+                    accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                    className="sr-only"
+                    onChange={(e) => onFileSelected(e.target.files?.[0])}
+                    disabled={imgLoading}
+                  />
+                </label>
+
+                <div className="border-t border-line pt-3">
+                  {!imagePrompt ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={suggestImagePrompt}
+                      disabled={imgLoading || !name.trim()}
+                    >
+                      {imgBusy === 'prompting' ? 'Prompt oluşturuluyor…' : '✨ AI ile görsel oluştur'}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>AI görsel prompt'u (isterseniz düzenleyin)</Label>
+                      <Textarea
+                        rows={3}
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        className="text-xs"
+                      />
+                      {imageStyleNote && <p className="text-xs text-ink-soft">{imageStyleNote}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" onClick={runGenerateImage} disabled={imgLoading}>
+                          {imgBusy === 'generating' ? 'Görsel oluşturuluyor…' : 'Bu prompt ile görsel oluştur'}
+                        </Button>
+                        <Button type="button" variant="ghost" onClick={suggestImagePrompt} disabled={imgLoading}>
+                          Farklı prompt öner
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <ErrorText>{imgError}</ErrorText>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Fiyat (₺) *</Label>
@@ -180,24 +366,34 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
             {aiNote && <p className="mb-2 rounded bg-white p-2 text-xs leading-relaxed text-ink-soft">{aiNote}</p>}
             <Label>Alerjenler</Label>
             <AllergenPicker value={allergens} onChange={setAllergens} />
-            <div className="mt-3 flex gap-5">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={containsAlcohol} onChange={(e) => setContainsAlcohol(e.target.checked)} />
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={containsAlcohol}
+                  onChange={(e) => setContainsAlcohol(e.target.checked)}
+                  className="h-4 w-4"
+                />
                 🍷 Alkol içerir
               </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={containsPork} onChange={(e) => setContainsPork(e.target.checked)} />
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={containsPork}
+                  onChange={(e) => setContainsPork(e.target.checked)}
+                  className="h-4 w-4"
+                />
                 🥓 Domuz ürünü içerir
               </label>
             </div>
           </div>
 
           <ErrorText>{error}</ErrorText>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" onClick={onClose} className="w-full sm:w-auto">
               Vazgeç
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy} className="w-full sm:w-auto">
               {busy ? 'Kaydediliyor…' : 'Kaydet'}
             </Button>
           </div>

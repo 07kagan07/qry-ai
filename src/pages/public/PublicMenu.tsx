@@ -61,7 +61,7 @@ export default function PublicMenu() {
       >
         <button
           onClick={() => setActiveCategory(null)}
-          className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors ${
+          className={`min-h-11 shrink-0 touch-manipulation rounded-full px-4 text-sm font-semibold transition-colors active:scale-[0.97] ${
             activeCategory === null
               ? 'bg-cobalt text-white'
               : 'bg-surface text-ink-soft hover:text-cobalt'
@@ -73,7 +73,7 @@ export default function PublicMenu() {
           <button
             key={c.id}
             onClick={() => setActiveCategory(c.id)}
-            className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors ${
+            className={`min-h-11 shrink-0 touch-manipulation rounded-full px-4 text-sm font-semibold transition-colors active:scale-[0.97] ${
               activeCategory === c.id
                 ? 'bg-cobalt text-white'
                 : 'bg-surface text-ink-soft hover:text-cobalt'
@@ -108,7 +108,7 @@ export default function PublicMenu() {
                       setExcluded(on ? excluded.filter((k) => k !== a.key) : [...excluded, a.key])
                     }
                     aria-pressed={on}
-                    className={`min-h-9 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`min-h-9 touch-manipulation rounded-md border px-2.5 py-1 text-xs font-medium transition-colors active:scale-[0.97] ${
                       on
                         ? 'border-coral bg-coral text-white'
                         : 'border-line bg-surface text-ink-soft hover:border-coral hover:text-coral-deep'
@@ -139,14 +139,14 @@ export default function PublicMenu() {
               {cat.items.map((item) => (
                 <li key={item.id}>
                   <div className="flex items-baseline">
-                    <h3 className="font-semibold text-ink">{item.name}</h3>
+                    <h3 className="min-w-0 font-semibold break-words text-ink">{item.name}</h3>
                     <span className="dot-leader" aria-hidden />
                     <span className="font-display shrink-0 font-bold text-cobalt">
                       ₺{Number(item.price).toFixed(2)}
                     </span>
                   </div>
                   {item.description && (
-                    <p className="mt-0.5 pr-14 text-sm text-ink-soft">{item.description}</p>
+                    <p className="mt-0.5 text-sm text-ink-soft">{item.description}</p>
                   )}
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                     {item.kcal != null && (

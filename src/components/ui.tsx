@@ -6,14 +6,15 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) {
   const styles = {
-    primary: 'bg-cobalt text-white hover:bg-cobalt-deep disabled:bg-cobalt/40',
-    secondary: 'bg-surface border border-line text-ink hover:border-cobalt hover:text-cobalt',
-    danger: 'bg-coral text-white hover:bg-coral-deep',
-    ghost: 'text-ink-soft hover:bg-cobalt-soft hover:text-cobalt-deep',
+    primary: 'bg-cobalt text-white hover:bg-cobalt-deep active:bg-cobalt-deep disabled:bg-cobalt/40',
+    secondary:
+      'bg-surface border border-line text-ink hover:border-cobalt hover:text-cobalt active:bg-cobalt-soft',
+    danger: 'bg-coral text-white hover:bg-coral-deep active:bg-coral-deep',
+    ghost: 'text-ink-soft hover:bg-cobalt-soft hover:text-cobalt-deep active:bg-cobalt-soft',
   }[variant]
   return (
     <button
-      className={`min-h-11 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed ${styles} ${className}`}
+      className={`min-h-11 touch-manipulation rounded-lg px-4 py-2 text-sm font-semibold transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 ${styles} ${className}`}
       {...props}
     />
   )
@@ -60,5 +61,9 @@ export function Spinner({ label }: { label?: string }) {
 
 export function ErrorText({ children }: { children: ReactNode }) {
   if (!children) return null
-  return <p className="mt-2 text-sm text-coral-deep">{children}</p>
+  return (
+    <p role="alert" className="mt-2 text-sm text-coral-deep">
+      {children}
+    </p>
+  )
 }
