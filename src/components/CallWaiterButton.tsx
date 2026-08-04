@@ -4,18 +4,21 @@ import type { Cafe, WaiterCallStatus } from '../lib/types'
 
 interface Props {
   cafe: Cafe
-  /** URL'deki ?masa= değeri — saatlik geçici oturum id'si (kalıcı masa id'si değil). */
+  /** URL'deki ?masa= değeri — kısa ömürlü geçici oturum id'si (kalıcı masa id'si değil). */
   sessionId: string | null
 }
 
 type ResolvedState =
-  | { kind: 'invalid' }
-  | { kind: 'ready'; tableId: string; cafeId: string; status: WaiterCallStatus | null }
+  | { kind: 'off' }
+  | { kind: 'no-session' }
+  | { kind: 'expired' }
+  | { kind: 'ready'; tableId: string; cafeId: string; expiresAt: number; status: WaiterCallStatus | null }
 
 // Menünün en dış kabuğunda, tüm temalarda tutarlı görünsün diye render edilir
-// (AllergenLegend/AllergenFilterBar ile aynı paylaşım deseni). Geçerli bir
-// oturum yoksa ya da süresi dolmuşsa hiçbir şey render etmez — eski bir
-// bookmark/geçmiş linki sessizce işe yaramaz hâle gelir.
+// (AllergenLegend/AllergenFilterBar ile aynı paylaşım deseni). Özellik kapalıysa
+// ya da masasız genel menü linkindeyse hiçbir şey render etmez. Ama masa QR'ından
+// gelinmiş, oturumu süresi dolmuş bir linkse (ör. ertesi gün açılan eski sekme)
+// müşteriye QR'ı tekrar okutması gerektiğini bildirir — sessizce kaybolmak yerine.
 export default function CallWaiterButton({ cafe, sessionId }: Props) {
   const [state, setState] = useState<ResolvedState | null>(null)
   const [sending, setSending] = useState(false)
@@ -23,8 +26,12 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
 
   useEffect(() => {
     setState(null)
-    if (!cafe.waiter_call_enabled || !sessionId) {
-      setState({ kind: 'invalid' })
+    if (!cafe.waiter_call_enabled) {
+      setState({ kind: 'off' })
+      return
+    }
+    if (!sessionId) {
+      setState({ kind: 'no-session' })
       return
     }
     let cancelled = false
@@ -36,8 +43,9 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
         .eq('id', sessionId)
         .maybeSingle()
       if (cancelled) return
-      if (!session || new Date(session.expires_at).getTime() <= Date.now()) {
-        setState({ kind: 'invalid' })
+      const expiresAt = session ? new Date(session.expires_at).getTime() : 0
+      if (!session || expiresAt <= Date.now()) {
+        setState({ kind: 'expired' })
         return
       }
 
@@ -55,6 +63,7 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
         kind: 'ready',
         tableId: session.table_id,
         cafeId: session.cafe_id,
+        expiresAt,
         status: (activeCall?.status as WaiterCallStatus | undefined) ?? null,
       })
     }
@@ -90,7 +99,34 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.kind === 'ready' ? state.tableId : null])
 
-  if (!state || state.kind === 'invalid') return null
+  // Sekme açık kalıp sayfa yeniden yüklenmese bile, oturum süresi dolar dolmaz
+  // arayüz otomatik "tekrar okutun" durumuna geçsin — sunucudaki RLS kontrolü
+  // (aşağıdaki callWaiter'da da ele alınır) zaten çağrıyı reddeder, ama bunu
+  // önceden gösterip müşterinin boşuna butona basmasını engelliyoruz.
+  const readyExpiresAt = state?.kind === 'ready' ? state.expiresAt : null
+  useEffect(() => {
+    if (readyExpiresAt == null) return
+    const msLeft = readyExpiresAt - Date.now()
+    if (msLeft <= 0) {
+      setState({ kind: 'expired' })
+      return
+    }
+    const timer = window.setTimeout(() => setState({ kind: 'expired' }), msLeft)
+    return () => window.clearTimeout(timer)
+  }, [readyExpiresAt])
+
+  if (!state || state.kind === 'off' || state.kind === 'no-session') return null
+
+  if (state.kind === 'expired') {
+    return (
+      <div className="fixed right-4 bottom-4 z-30 max-w-[calc(100%-2rem)] pb-[env(safe-area-inset-bottom)]">
+        <div className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink-soft shadow-lg">
+          <span aria-hidden>🔄</span>
+          Garson çağırmak için QR kodu tekrar okutun
+        </div>
+      </div>
+    )
+  }
 
   async function callWaiter() {
     if (state?.kind !== 'ready' || sending) return
@@ -99,12 +135,16 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
       .from('waiter_calls')
       .insert({ cafe_id: state.cafeId, table_id: state.tableId, status: 'pending' })
     setSending(false)
-    // 23505: zaten bekleyen bir çağrı var (kısmi unique index) — hata değil, mevcut durumu yansıt.
-    if (!error || error.code === '23505') {
-      setState((prev) => (prev?.kind === 'ready' ? { ...prev, status: 'pending' } : prev))
-      setJustCalled(true)
-      window.setTimeout(() => setJustCalled(false), 2500)
+    if (error && error.code !== '23505') {
+      // RLS reddi (42501) genelde oturumun az önce, istemci fark etmeden süresinin
+      // dolması demektir — sunucu tarafındaki asıl güvenlik kontrolü budur.
+      setState({ kind: 'expired' })
+      return
     }
+    // 23505: zaten bekleyen bir çağrı var (kısmi unique index) — hata değil, mevcut durumu yansıt.
+    setState((prev) => (prev?.kind === 'ready' ? { ...prev, status: 'pending' } : prev))
+    setJustCalled(true)
+    window.setTimeout(() => setJustCalled(false), 2500)
   }
 
   const { status } = state

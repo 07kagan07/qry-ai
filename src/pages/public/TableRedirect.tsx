@@ -3,13 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Spinner } from '../../components/ui'
 
-const SESSION_HOURS = 1
+const SESSION_MINUTES = 10
 
 // QR koda basılan kalıcı masa kimliğinin tek görevi budur: geçerli (süresi
 // dolmamış) bir geçici oturum bulmak/oluşturmak ve tarayıcıyı, geçmişte ayrı
 // bir kayıt bırakmadan (replace: true), o oturumu taşıyan asıl menü adresine
 // yönlendirmek. Kalıcı id adres çubuğunda hiç görünmez — bookmark/geçmişte
-// kalan tek şey saatlik geçici oturumdur, süresi dolunca sessizce işe yaramaz.
+// kalan tek şey SESSION_MINUTES sonra expired olan geçici oturumdur.
 export default function TableRedirect() {
   const { tableId } = useParams()
   const navigate = useNavigate()
@@ -45,7 +45,7 @@ export default function TableRedirect() {
 
       let sessionId = existing?.id as string | undefined
       if (!sessionId) {
-        const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000).toISOString()
+        const expiresAt = new Date(Date.now() + SESSION_MINUTES * 60 * 1000).toISOString()
         const { data: created, error: insertErr } = await supabase
           .from('table_sessions')
           .insert({ table_id: table.id, cafe_id: table.cafe_id, expires_at: expiresAt })

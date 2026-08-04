@@ -81,7 +81,7 @@ export interface Table {
   created_at: string
 }
 
-// Saatlik geçici oturum — ?masa= değeri budur, kalıcı masa kimliğini taşımaz.
+// Kısa ömürlü geçici oturum — ?masa= değeri budur, kalıcı masa kimliğini taşımaz.
 export interface TableSession {
   id: string
   table_id: string
