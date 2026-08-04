@@ -8,8 +8,10 @@ import Dashboard from './pages/panel/Dashboard'
 import MenuManager from './pages/panel/MenuManager'
 import ImportMenu from './pages/panel/ImportMenu'
 import QrPage from './pages/panel/QrPage'
+import TablesAndCalls from './pages/panel/TablesAndCalls'
 import PublicMenu from './pages/public/PublicMenu'
 import PrintMenu from './pages/public/PrintMenu'
+import TableRedirect from './pages/public/TableRedirect'
 
 export default function App() {
   return (
@@ -24,9 +26,11 @@ export default function App() {
             <Route path="menu" element={<MenuManager />} />
             <Route path="ice-aktar" element={<ImportMenu />} />
             <Route path="qr" element={<QrPage />} />
+            <Route path="masalar" element={<TablesAndCalls />} />
           </Route>
           <Route path="/menu/:slug" element={<PublicMenu />} />
           <Route path="/menu/:slug/yazdir" element={<PrintMenu />} />
+          <Route path="/t/:tableId" element={<TableRedirect />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

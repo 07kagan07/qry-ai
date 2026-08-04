@@ -1,31 +1,23 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useAuth } from '../../context/AuthContext'
-import { Button, Card, Input, Label } from '../../components/ui'
-
-// QR içine gömülecek site adresi. Yayında VITE_PUBLIC_SITE_URL tanımlanmalı;
-// tanımlı değilse tarayıcının adresi kullanılır (geliştirmede localhost olur).
-const SITE_URL: string =
-  (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, '') ??
-  window.location.origin
-
-const IS_LOCAL_URL = /localhost|127\.0\.0\.1/.test(SITE_URL)
+import { SITE_URL, IS_LOCAL_URL } from '../../lib/siteUrl'
+import { Button, Card } from '../../components/ui'
 
 export default function QrPage() {
   const { cafe } = useAuth()
-  const [table, setTable] = useState('')
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   if (!cafe) return null
 
-  const baseUrl = `${SITE_URL}/menu/${cafe.slug}`
-  const url = table ? `${baseUrl}?masa=${encodeURIComponent(table)}` : baseUrl
+  const url = `${SITE_URL}/menu/${cafe.slug}`
 
   function download() {
     const canvas = wrapperRef.current?.querySelector('canvas')
     if (!canvas) return
     const link = document.createElement('a')
-    link.download = `qr-menu-${cafe!.slug}${table ? `-masa-${table}` : ''}.png`
+    link.download = `qr-menu-${cafe!.slug}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
   }
@@ -53,15 +45,6 @@ export default function QrPage() {
           <QRCodeCanvas value={url} size={200} level="M" includeMargin />
         </div>
         <p className="w-full break-all text-center text-sm text-ink-soft">{url}</p>
-        <div className="w-full max-w-xs">
-          <Label>Masa numarası (isteğe bağlı)</Label>
-          <Input
-            value={table}
-            onChange={(e) => setTable(e.target.value)}
-            placeholder="Örn: 5"
-            inputMode="numeric"
-          />
-        </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <Button onClick={download} className="w-full sm:w-auto">
             PNG olarak indir
@@ -80,6 +63,15 @@ export default function QrPage() {
           <strong>Hatırlatma:</strong> Mevzuata göre QR menü kullanan işletmelerin, QR koda
           erişemeyen müşteriler için yazılı bir alternatif sunması gerekir. "Yazdırılabilir menü"
           butonuyla alerjen ve kalori bilgilerini içeren basılı bir sürüm alabilirsiniz.
+        </p>
+      </Card>
+      <Card className="mt-4">
+        <p className="text-sm leading-relaxed text-ink-soft">
+          Masa bazlı QR kod ve <strong>garson çağırma</strong> özelliği için{' '}
+          <Link to="/panel/masalar" className="font-semibold text-cobalt hover:underline">
+            Masalar
+          </Link>{' '}
+          sayfasını kullanın. Buradaki genel QR kod masasız, tüm masalarda ortak kullanılabilir.
         </p>
       </Card>
     </div>

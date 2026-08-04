@@ -18,6 +18,7 @@ export interface Cafe {
   wifi_ssid: string | null
   wifi_password: string | null
   website_url: string | null
+  waiter_call_enabled: boolean
   created_at: string
 }
 
@@ -69,4 +70,34 @@ export interface ItemTranslation {
 
 export interface CategoryWithItems extends Category {
   items: MenuItem[]
+}
+
+// Kalıcı masa kimliği — QR koda basılan tek şey bu id'dir, hiç değişmez.
+export interface Table {
+  id: string
+  cafe_id: string
+  label: string
+  is_active: boolean
+  created_at: string
+}
+
+// Saatlik geçici oturum — ?masa= değeri budur, kalıcı masa kimliğini taşımaz.
+export interface TableSession {
+  id: string
+  table_id: string
+  cafe_id: string
+  expires_at: string
+  created_at: string
+}
+
+export type WaiterCallStatus = 'pending' | 'acknowledged' | 'resolved'
+
+export interface WaiterCall {
+  id: string
+  cafe_id: string
+  table_id: string
+  status: WaiterCallStatus
+  created_at: string
+  acknowledged_at: string | null
+  resolved_at: string | null
 }

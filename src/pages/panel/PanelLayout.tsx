@@ -8,6 +8,7 @@ const navItems = [
   { to: '/panel/menu', label: 'Menü Yönetimi' },
   { to: '/panel/ice-aktar', label: 'AI ile İçe Aktar' },
   { to: '/panel/qr', label: 'QR Kod' },
+  { to: '/panel/masalar', label: 'Masalar' },
 ]
 
 export default function PanelLayout() {

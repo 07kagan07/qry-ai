@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { usePublicMenu } from '../../lib/usePublicMenu'
 import type { AllergenKey } from '../../lib/allergens'
 import { Spinner } from '../../components/ui'
+import CallWaiterButton from '../../components/CallWaiterButton'
 import LandingHub from './LandingHub'
 import ClassicMenuTheme from './themes/ClassicMenuTheme'
 import GridMenuTheme from './themes/GridMenuTheme'
@@ -56,28 +57,46 @@ export default function PublicMenu() {
     setExcluded((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
   }
 
+  const sessionId = searchParams.get('masa')
+
+  function enterMenu() {
+    // Mevcut parametreleri (özellikle ?masa=) koruyarak sadece view'i ekler —
+    // aksi halde masa oturumu kaybolur ve garson çağırma butonu kaybolurdu.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', 'menu')
+      return next
+    })
+  }
+
   // Karşılama sayfası opsiyoneldir; QR her zaman aynı /menu/:slug adresini
   // gösterir, "Menüye Git" tıklanınca ?view=menu ile geri tuşuna uyumlu
   // şekilde asıl menüye geçilir.
   if (cafe.menu_landing_enabled && searchParams.get('view') !== 'menu') {
     return (
-      <LandingHub cafe={cafe} onEnterMenu={() => setSearchParams({ view: 'menu' })} />
+      <>
+        <LandingHub cafe={cafe} onEnterMenu={enterMenu} />
+        <CallWaiterButton cafe={cafe} sessionId={sessionId} />
+      </>
     )
   }
 
   const ThemeComponent = THEME_COMPONENTS[cafe.menu_theme] ?? ClassicMenuTheme
 
   return (
-    <ThemeComponent
-      cafe={cafe}
-      allCategories={allCategories}
-      shownCategories={shownCategories}
-      activeCategory={activeCategory}
-      onSelectCategory={setActiveCategory}
-      excludedAllergens={excluded}
-      onToggleAllergen={toggleAllergen}
-      filterOpen={filterOpen}
-      onToggleFilterOpen={() => setFilterOpen((v) => !v)}
-    />
+    <>
+      <ThemeComponent
+        cafe={cafe}
+        allCategories={allCategories}
+        shownCategories={shownCategories}
+        activeCategory={activeCategory}
+        onSelectCategory={setActiveCategory}
+        excludedAllergens={excluded}
+        onToggleAllergen={toggleAllergen}
+        filterOpen={filterOpen}
+        onToggleFilterOpen={() => setFilterOpen((v) => !v)}
+      />
+      <CallWaiterButton cafe={cafe} sessionId={sessionId} />
+    </>
   )
 }
