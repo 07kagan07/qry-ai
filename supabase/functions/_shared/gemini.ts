@@ -44,6 +44,7 @@ export async function generateJson<T>(
   systemPrompt: string,
   userParts: GeminiPart[],
   schema: Record<string, unknown>,
+  options?: { temperature?: number },
 ): Promise<T> {
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) {
@@ -59,6 +60,7 @@ export async function generateJson<T>(
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: schema,
+        ...(options?.temperature != null ? { temperature: options.temperature } : {}),
       },
     }),
   })

@@ -13,7 +13,9 @@ export default function MenuManager() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [modal, setModal] = useState<{ categoryId: string; item?: MenuItem } | null>(null)
+  const [modal, setModal] = useState<{ categoryId: string; categoryName: string; item?: MenuItem } | null>(
+    null,
+  )
   const [openCategoryMenu, setOpenCategoryMenu] = useState<string | null>(null)
   const [openItemMenu, setOpenItemMenu] = useState<string | null>(null)
 
@@ -167,7 +169,7 @@ export default function MenuManager() {
                   <Button
                     variant="secondary"
                     className="!px-3 !py-1.5 text-xs"
-                    onClick={() => setModal({ categoryId: cat.id })}
+                    onClick={() => setModal({ categoryId: cat.id, categoryName: cat.name })}
                   >
                     + Ürün
                   </Button>
@@ -241,7 +243,7 @@ export default function MenuManager() {
                       {/* Satıra dokunmak düzenlemeyi açar — mobilde en sık kullanılan işlem */}
                       <button
                         type="button"
-                        onClick={() => setModal({ categoryId: cat.id, item })}
+                        onClick={() => setModal({ categoryId: cat.id, categoryName: cat.name, item })}
                         className="flex min-w-0 flex-1 touch-manipulation items-center gap-2 rounded-lg py-2 pr-1 text-left transition-colors hover:bg-porcelain active:bg-porcelain"
                       >
                         <span className="min-w-0 flex-1">
@@ -348,6 +350,7 @@ export default function MenuManager() {
         <ItemFormModal
           title={modal.item ? 'Ürünü Düzenle' : 'Yeni Ürün'}
           initial={modal.item}
+          categoryName={modal.categoryName}
           onClose={() => setModal(null)}
           onSave={(draft) => saveItem(draft, modal.categoryId, modal.item)}
         />

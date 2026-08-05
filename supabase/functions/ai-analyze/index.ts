@@ -26,6 +26,13 @@ const OUTPUT_SCHEMA = {
       type: 'STRING',
       description: 'Türkçe, 1-2 cümle: tahminin dayanağı ve işletmecinin kontrol etmesi gerekenler',
     },
+    description: {
+      type: 'STRING',
+      nullable: true,
+      description:
+        'Menü açıklaması zaten verilmişse null. Verilmemişse en fazla 120 karakterlik, ' +
+        'iştah açıcı, abartısız bir Türkçe menü açıklaması üret.',
+    },
   },
   required: [
     'kcal_estimate',
@@ -44,6 +51,9 @@ Bir kafe/restoran menüsündeki ürün için Türk Gıda Kodeksi kapsamında bey
 bilgileri tahmin ediyorsun.
 
 Kurallar:
+- Ürün adı tek başına belirsiz/eksik olabilir (ör. sadece "Kaşarlı" ya da "Karışık"); bu
+  durumda verilmişse KATEGORİ adıyla birleştirerek asıl yemeği anla (ör. "Gözleme"
+  kategorisindeki "Kaşarlı" = kaşarlı gözleme → yufka/glüten içerir).
 - Kalori tahmini TEK PORSİYON içindir (kafede servis edilen tipik porsiyon).
 - Alerjenlerde tipik/geleneksel tarifi esas al. Malzeme listesi verildiyse ona öncelik ver.
 - Emin olmadığın ama muhtemel alerjenleri de dahil et (tüketici güvenliği önceliklidir) ve
@@ -51,26 +61,33 @@ Kurallar:
 - Çapraz bulaşma riskini notes'ta belirt ama allergens listesine ekleme.
 - Türk kahvesi, ayran, simit, menemen gibi klasik ürünlerde yüksek güven; ev yapımı/özel
   ürünlerde düşük güven bildir.
-- notes her zaman Türkçe olmalı.`
+- notes her zaman Türkçe olmalı.
+- description: menü açıklaması zaten verilmişse kesinlikle null döndür (üzerine yazma).
+  Verilmemişse kısa, iştah açıcı, klişesiz ("eşsiz lezzet" gibi ifadeler yok) bir açıklama üret.`
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
   if (opt) return opt
 
   try {
-    const { name, description, ingredients } = await req.json()
+    const { name, description, ingredients, category } = await req.json()
     if (!name || typeof name !== 'string') {
       return jsonResponse({ error: 'Ürün adı gerekli.' }, 400)
     }
 
     const parts = [`Ürün adı: ${name}`]
+    if (category) parts.push(`Kategori: ${category}`)
     if (description) parts.push(`Menü açıklaması: ${description}`)
     if (ingredients) parts.push(`Malzemeler: ${ingredients}`)
 
+    // temperature: 0 — aynı ürün için tekrar analiz edildiğinde tutarlı (deterministik)
+    // sonuç dönmesi için; mevzuat beyanı gibi hukuki sorumluluğu olan bir çıktıda
+    // istekten isteğe farklı alerjen listesi dönmesi kabul edilemez.
     const result = await generateJson(
       SYSTEM_PROMPT,
       [{ text: parts.join('\n') }],
       OUTPUT_SCHEMA,
+      { temperature: 0 },
     )
 
     return jsonResponse(result)

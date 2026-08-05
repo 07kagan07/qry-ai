@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import type { AllergenKey } from '../lib/allergens'
 import type { AiSuggestion, MenuItem } from '../lib/types'
-import { analyzeItem, generateDescription, generateImagePrompt, generateItemImage } from '../lib/ai'
+import { analyzeItem, generateImagePrompt, generateItemImage } from '../lib/ai'
 import { uploadGeneratedImage, uploadItemImage } from '../lib/storage'
 import AllergenPicker from './AllergenPicker'
 import { Button, ErrorText, Input, Label, Textarea } from './ui'
@@ -23,6 +23,9 @@ export interface ItemDraft {
 interface Props {
   title: string
   initial?: MenuItem
+  /** Ürünün ait olduğu kategori adı (ör. "Gözleme") — ürün adı tek başına belirsizse
+   * (ör. "Kaşarlı") AI'nin doğru yemeği anlaması için analiz/açıklama/görsel isteklerine eklenir. */
+  categoryName?: string
   onSave: (draft: ItemDraft) => Promise<void>
   onClose: () => void
 }
@@ -33,7 +36,7 @@ const SAVED_MESSAGE_MS = 1600
 
 type SaveState = 'idle' | 'saving' | 'saved'
 
-export default function ItemFormModal({ title, initial, onSave, onClose }: Props) {
+export default function ItemFormModal({ title, initial, categoryName, onSave, onClose }: Props) {
   const { cafe } = useAuth()
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -47,7 +50,6 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
   const [aiNote, setAiNote] = useState('')
   const [error, setError] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
-  const [descBusy, setDescBusy] = useState(false)
 
   // Görsel durumu
   const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null)
@@ -83,11 +85,21 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
     setError('')
     setAiBusy(true)
     try {
-      const r = await analyzeItem(name, description || undefined, ingredients || undefined)
+      const r = await analyzeItem(
+        name,
+        description || undefined,
+        ingredients || undefined,
+        categoryName,
+      )
       setKcal(String(r.kcal_estimate))
       setAllergens(r.allergens)
       setContainsAlcohol(r.contains_alcohol)
       setContainsPork(r.contains_pork)
+      // Açıklama zaten doluysa AI üzerine yazmaz (r.description null döner) — kullanıcının
+      // elle yazdığı metin korunur.
+      if (!description.trim() && r.description) {
+        setDescription(r.description)
+      }
       const suggestion: AiSuggestion = {
         kcal_estimate: r.kcal_estimate,
         kcal_min: r.kcal_min,
@@ -113,22 +125,6 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
     }
   }
 
-  async function runAiDescribe() {
-    if (!name.trim()) {
-      setError('Önce ürün adını girin.')
-      return
-    }
-    setError('')
-    setDescBusy(true)
-    try {
-      setDescription(await generateDescription(name, ingredients || undefined))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Açıklama üretilemedi.')
-    } finally {
-      setDescBusy(false)
-    }
-  }
-
   // Prompt üretimi ve görsel üretimi arka arkaya, kullanıcıya prompt hiç
   // gösterilmeden çalışır — işletmeci sadece sonucu görür.
   async function runGenerateImage() {
@@ -143,6 +139,7 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
         name,
         description: description || undefined,
         ingredients: ingredients || undefined,
+        category: categoryName,
       })
       setImgBusy('generating')
       const r = await generateItemImage(p.prompt)
@@ -266,18 +263,11 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
               <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Örn: Fıstıklı Baklava" />
             </div>
             <div>
-              <div className="flex items-center justify-between">
-                <Label>Açıklama</Label>
-                <button
-                  type="button"
-                  onClick={runAiDescribe}
-                  disabled={descBusy}
-                  className="mb-1 text-xs font-medium text-cobalt hover:underline disabled:text-ink-soft"
-                >
-                  {descBusy ? 'Üretiliyor…' : '✨ Açıklama üret'}
-                </button>
-              </div>
+              <Label>Açıklama</Label>
               <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+              <p className="mt-1 text-xs text-ink-soft">
+                Boş bırakırsanız aşağıdaki "AI ile Doldur" bunu da otomatik üretir.
+              </p>
             </div>
             <div>
               <Label>Malzemeler (AI analizinin isabetini artırır, menüde gösterilmez)</Label>
@@ -371,6 +361,9 @@ export default function ItemFormModal({ title, initial, onSave, onClose }: Props
                   {aiBusy ? 'Analiz ediliyor…' : '✨ AI ile Doldur'}
                 </Button>
               </div>
+              <p className="mb-2 text-xs text-ink-soft">
+                Kalori/alerjen beyanlarını doldurur; açıklama boşsa onu da üretir.
+              </p>
               {aiNote && <p className="mb-2 rounded bg-white p-2 text-xs leading-relaxed text-ink-soft">{aiNote}</p>}
               <Label>Alerjenler</Label>
               <AllergenPicker value={allergens} onChange={setAllergens} />

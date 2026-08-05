@@ -59,6 +59,9 @@ Bir kafe menüsündeki ÜRÜN LİSTESİNİN TAMAMI için Türk Gıda Kodeksi kap
 gereken bilgileri üretiyorsun. Her ürün için bir sonuç döndür; id alanını aynen koru.
 
 Kurallar:
+- Ürün adı tek başına belirsiz/eksik olabilir (ör. sadece "Kaşarlı" ya da "Karışık"); bu
+  durumda verilmişse KATEGORİ adıyla birleştirerek asıl yemeği anla (ör. "Gözleme"
+  kategorisindeki "Kaşarlı" = kaşarlı gözleme → yufka/glüten içerir).
 - Kalori tahmini TEK PORSİYON içindir (kafede servis edilen tipik porsiyon).
 - Alerjenlerde ürünün tipik/geleneksel tarifini esas al; muhtemel alerjenleri de dahil et
   (tüketici güvenliği önceliklidir) ve notes'ta belirt.
@@ -87,14 +90,19 @@ Deno.serve(async (req) => {
     }
 
     const lines = items.map(
-      (it: { id: string; name: string; description?: string | null }) =>
-        `- id: ${it.id} | ürün: ${it.name}${it.description ? ` | mevcut açıklama: ${it.description}` : ' | açıklama yok'}`,
+      (it: { id: string; name: string; description?: string | null; category?: string }) =>
+        `- id: ${it.id} | ürün: ${it.name}` +
+        (it.category ? ` | kategori: ${it.category}` : '') +
+        (it.description ? ` | mevcut açıklama: ${it.description}` : ' | açıklama yok'),
     )
 
+    // temperature: 0 — mevzuat beyanı gibi hukuki sorumluluğu olan bir çıktıda
+    // istekten isteğe farklı alerjen listesi dönmesi kabul edilemez (bkz. ai-analyze).
     const result = await generateJson(
       SYSTEM_PROMPT,
       [{ text: `Ürün listesi:\n${lines.join('\n')}` }],
       OUTPUT_SCHEMA,
+      { temperature: 0 },
     )
 
     return jsonResponse(result)

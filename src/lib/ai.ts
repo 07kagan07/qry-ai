@@ -10,6 +10,8 @@ export interface AnalyzeResult {
   contains_pork: boolean
   confidence: 'low' | 'medium' | 'high'
   notes: string
+  /** Açıklama zaten verilmişse null; verilmemişse AI'nin ürettiği açıklama. */
+  description: string | null
 }
 
 export interface ImportedItem {
@@ -35,8 +37,18 @@ async function invoke<T>(fn: string, body: Record<string, unknown>): Promise<T> 
 }
 
 /** Ürün adı + malzemelerden alerjen ve kalori tahmini */
-export async function analyzeItem(name: string, description?: string, ingredients?: string) {
-  const result = await invoke<AnalyzeResult>('ai-analyze', { name, description, ingredients })
+export async function analyzeItem(
+  name: string,
+  description?: string,
+  ingredients?: string,
+  category?: string,
+) {
+  const result = await invoke<AnalyzeResult>('ai-analyze', {
+    name,
+    description,
+    ingredients,
+    category,
+  })
   // AI çıktısındaki alerjen anahtarlarını doğrula
   result.allergens = (result.allergens ?? []).filter((a): a is AllergenKey => isAllergenKey(a))
   return result
@@ -46,11 +58,13 @@ export interface BatchAnalyzeInput {
   id: string
   name: string
   description?: string | null
+  /** Ürünün kategorisi (ör. "Gözleme") — ürün adı tek başına belirsizse (ör. "Kaşarlı")
+   * AI'nin doğru yemeği anlaması için gönderilir. */
+  category?: string
 }
 
 export interface BatchAnalyzeResult extends AnalyzeResult {
   id: string
-  description: string | null
 }
 
 /**
@@ -77,19 +91,19 @@ export async function analyzeBatch(
   return map
 }
 
-/** Menü fotoğrafından ürünleri çıkar */
-export async function importMenuFromImage(imageBase64: string, mediaType: string) {
+/** Menü fotoğrafından ürünleri çıkar. continuationCategory: kategori başlığı bu
+ * fotoğrafa sığmadıysa, ürünlerin ait olduğu (önceki fotoğraftaki) kategori adı. */
+export async function importMenuFromImage(
+  imageBase64: string,
+  mediaType: string,
+  continuationCategory?: string,
+) {
   const result = await invoke<{ categories: ImportedCategory[] }>('ai-import-menu', {
     image: imageBase64,
     media_type: mediaType,
+    continuation_category: continuationCategory,
   })
   return result.categories ?? []
-}
-
-/** Ürün için kısa iştah açıcı açıklama üret */
-export async function generateDescription(name: string, ingredients?: string) {
-  const result = await invoke<{ description: string }>('ai-describe', { name, ingredients })
-  return result.description
 }
 
 export interface ImagePromptResult {
