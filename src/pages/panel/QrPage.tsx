@@ -64,6 +64,16 @@ export default function QrPage() {
           erişemeyen müşteriler için yazılı bir alternatif sunması gerekir. "Yazdırılabilir menü"
           butonuyla alerjen ve kalori bilgilerini içeren basılı bir sürüm alabilirsiniz.
         </p>
+        <p className="mt-3 rounded-lg border border-cobalt/30 bg-white/60 p-3 text-sm leading-relaxed text-cobalt-deep">
+          Yönetmelik ayrıca bu uyarının müşterinin <strong>kolayca görebileceği bir yerde</strong>{' '}
+          (masa üstü, vitrin, menü kapağı vb.) yazılı olarak bulunmasını istiyor. Aşağıdaki metni
+          bastırıp asabilirsiniz:
+          <br />
+          <em>
+            "Bu bilgilere karekod ile ulaşabilirsiniz. Karekod kullanamayan tüketiciler talep
+            ederse bilgi kendilerine ayrıca sunulur."
+          </em>
+        </p>
       </Card>
       <Card className="mt-4">
         <p className="text-sm leading-relaxed text-ink-soft">

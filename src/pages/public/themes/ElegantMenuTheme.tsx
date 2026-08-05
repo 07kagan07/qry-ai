@@ -111,6 +111,9 @@ export default function ElegantMenuTheme({
                         {item.description}
                       </span>
                     )}
+                    {/* Satırda sadece ikon-only rozetler — tam etiket/açıklama detayına
+                        tıklanınca açılan ItemDetailModal'da yer alır. Bilgi hiç gizlenmez
+                        (ikon her zaman görünür), yalnızca tam metin bir tıkla açılır. */}
                     {(item.kcal != null ||
                       item.allergens.length > 0 ||
                       item.contains_alcohol ||
@@ -122,21 +125,18 @@ export default function ElegantMenuTheme({
                           </span>
                         )}
                         {item.contains_alcohol && (
-                          <span className="rounded-md bg-cobalt-soft px-2 py-0.5 font-medium text-cobalt-deep">
-                            Alkollü
+                          <span title="Alkollü" aria-hidden>
+                            🍷
                           </span>
                         )}
                         {item.contains_pork && (
-                          <span className="rounded-md bg-coral-soft px-2 py-0.5 font-medium text-coral-deep">
-                            Domuz ürünü
+                          <span title="Domuz ürünü" aria-hidden>
+                            🥓
                           </span>
                         )}
                         {item.allergens.map((a) => (
-                          <span
-                            key={a}
-                            className="rounded-md border border-coral-soft bg-coral-soft/60 px-2 py-0.5 text-coral-deep"
-                          >
-                            {ALLERGENS[a].icon} {ALLERGENS[a].label}
+                          <span key={a} title={ALLERGENS[a].label} aria-hidden>
+                            {ALLERGENS[a].icon}
                           </span>
                         ))}
                       </span>
