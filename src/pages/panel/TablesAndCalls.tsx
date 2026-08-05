@@ -9,11 +9,28 @@ import { Button, Card, ErrorText, Input } from '../../components/ui'
 
 type CallWithLabel = WaiterCall & { tableLabel: string }
 
-// Kısa bir bip — bağımlılık eklemeden, Web Audio API ile üretilir. Yeni bir
-// "pending" çağrı geldiğinde personelin dikkatini çekmek için çalınır.
-function beep() {
+// Tek bir AudioContext yeniden kullanılır (her bip için yenisini açmak yerine).
+// Tarayıcılar, kullanıcı sayfayla hiç etkileşmeden sesin otomatik çalmasını
+// engeller (autoplay policy) — bu yüzden context ilk dokunma/tuş basımında
+// "unlockAudio" ile önceden açılıp kilidi kaldırılır; sonraki çağrılarda
+// kullanıcı etkileşimi olmadan da (arka planda) ses çalabilir.
+let sharedAudioCtx: AudioContext | null = null
+
+function getAudioContext(): AudioContext | null {
   try {
-    const ctx = new AudioContext()
+    if (!sharedAudioCtx) sharedAudioCtx = new AudioContext()
+    if (sharedAudioCtx.state === 'suspended') void sharedAudioCtx.resume()
+    return sharedAudioCtx
+  } catch {
+    return null
+  }
+}
+
+// Kısa bir bip — bağımlılık eklemeden, Web Audio API ile üretilir.
+function beep() {
+  const ctx = getAudioContext()
+  if (!ctx) return
+  try {
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
@@ -23,9 +40,8 @@ function beep() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
     osc.start()
     osc.stop(ctx.currentTime + 0.4)
-    osc.onended = () => void ctx.close()
   } catch {
-    // Tarayıcı Web Audio'yu engellemiş olabilir (otomatik oynatma politikası) — sessizce yoksay.
+    // Tarayıcı Web Audio'yu engellemiş olabilir — sessizce yoksay.
   }
 }
 
@@ -146,7 +162,6 @@ export default function TablesAndCalls() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const row = payload.new as WaiterCall
-            beep()
             const label = tablesRef.current.find((t) => t.id === row.table_id)?.label ?? 'Bilinmeyen masa'
             setCalls((prev) => [{ ...row, tableLabel: label }, ...prev])
           } else if (payload.eventType === 'UPDATE') {
@@ -160,6 +175,32 @@ export default function TablesAndCalls() {
       void supabase.removeChannel(channel)
     }
   }, [cafe])
+
+  // Sayfayla ilk dokunma/tuş basımında ses kilidini önceden açar — böylece
+  // müşteri gerçekten çağrı gönderdiğinde tarayıcı otomatik oynatmayı
+  // engellemeden ses hemen çalabilir.
+  useEffect(() => {
+    function unlock() {
+      getAudioContext()
+    }
+    document.addEventListener('pointerdown', unlock, { once: true })
+    document.addEventListener('keydown', unlock, { once: true })
+    return () => {
+      document.removeEventListener('pointerdown', unlock)
+      document.removeEventListener('keydown', unlock)
+    }
+  }, [])
+
+  // Bekleyen ("pending") en az bir çağrı olduğu sürece birkaç saniyede bir
+  // tekrar çalar — kalabalık bir kafede personel ekrana sürekli bakmayabilir,
+  // tek seferlik bir bip kolayca kaçırılabilir. "Geldim" ile onaylanınca durur.
+  const hasPendingCall = calls.some((c) => c.status === 'pending')
+  useEffect(() => {
+    if (!hasPendingCall) return
+    beep()
+    const interval = window.setInterval(beep, 5000)
+    return () => window.clearInterval(interval)
+  }, [hasPendingCall])
 
   if (!cafe) return null
 
