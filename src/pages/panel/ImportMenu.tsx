@@ -40,11 +40,9 @@ export default function ImportMenu() {
   const [saving, setSaving] = useState(false)
   const [saveStep, setSaveStep] = useState('')
   const [done, setDone] = useState(false)
-  // Uzun bir kategori tek fotoğrafa sığmayıp devam fotoğrafıyla yüklendiğinde,
-  // kategori başlığı o karede görünmeyebilir — kullanıcı burada hangi kategorinin
-  // devamı olduğunu seçip AI'ye kesin talimat olarak geçirebilir.
+  // Önizlemedeki "ürünün kategorisini değiştir" seçicisine, bu partide henüz
+  // görünmeyen (daha önce kaydedilmiş) kategorileri de seçenek olarak sunmak için.
   const [existingCategoryNames, setExistingCategoryNames] = useState<string[]>([])
-  const [continuationCategory, setContinuationCategory] = useState('')
 
   const loadCategoryNames = useCallback(async () => {
     if (!cafe) return
@@ -100,7 +98,7 @@ export default function ImportMenu() {
         )
         try {
           const b64 = await fileToBase64(file)
-          const categories = await importMenuFromImage(b64, file.type, continuationCategory || undefined)
+          const categories = await importMenuFromImage(b64, file.type)
           for (const cat of categories) {
             const normCat = normalizeName(cat.name)
             let ci = catIdxByName.get(normCat)
@@ -164,6 +162,34 @@ export default function ImportMenu() {
     if (!preview) return
     const next = structuredClone(preview)
     next[catIdx].items.splice(itemIdx, 1)
+    setPreview(next.filter((c) => c.items.length > 0))
+  }
+
+  // AI kategori başlığını yanlış okuduysa/uydurduysa; kullanıcı burada mevcut bir
+  // kategoriyle birebir aynı olacak şekilde düzeltirse, kaydederken isim eşleşmesi
+  // sayesinde otomatik olarak o kategoriye eklenir.
+  function updateCategoryName(catIdx: number, value: string) {
+    if (!preview) return
+    const next = structuredClone(preview)
+    next[catIdx].name = value
+    setPreview(next)
+  }
+
+  // Bir ürün yanlış kategoriye düşmüşse (ör. AI karıştırdıysa) ya da doğru
+  // kategoriye taşınması gerekiyorsa; hedef önizlemede zaten varsa oraya eklenir,
+  // yoksa yeni bir kategori kartı olarak oluşturulur.
+  function moveItem(catIdx: number, itemIdx: number, targetName: string) {
+    if (!preview) return
+    const trimmed = targetName.trim()
+    if (!trimmed || normalizeName(trimmed) === normalizeName(preview[catIdx].name)) return
+    const next = structuredClone(preview)
+    const [item] = next[catIdx].items.splice(itemIdx, 1)
+    let targetIdx = next.findIndex((c) => normalizeName(c.name) === normalizeName(trimmed))
+    if (targetIdx === -1) {
+      next.push({ name: trimmed, items: [] })
+      targetIdx = next.length - 1
+    }
+    next[targetIdx].items.push(item)
     setPreview(next.filter((c) => c.items.length > 0))
   }
 
@@ -274,7 +300,6 @@ export default function ImportMenu() {
       }
       setPreview(null)
       setNote('')
-      setContinuationCategory('')
       await loadCategoryNames()
       setDone(true)
       if (analysisFailed) {
@@ -305,31 +330,6 @@ export default function ImportMenu() {
       </p>
 
       <Card>
-        {existingCategoryNames.length > 0 && (
-          <div className="mb-3">
-            <label htmlFor="continuation-category" className="mb-1 block text-sm font-medium text-ink">
-              Bu fotoğraf bir kategorinin devamı mı?
-            </label>
-            <select
-              id="continuation-category"
-              value={continuationCategory}
-              onChange={(e) => setContinuationCategory(e.target.value)}
-              className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-cobalt focus:ring-2 focus:ring-cobalt-soft"
-            >
-              <option value="">— Hayır, yeni kategori(ler) var —</option>
-              {existingCategoryNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-ink-soft">
-              Uzun bir kategori tek fotoğrafa sığmayıp başlığı önceki karede kaldıysa seçin —
-              böylece AI yeni bir kategori uydurmak yerine bu ürünleri seçtiğiniz kategoriye ekler.
-              Birden fazla fotoğraf seçtiyseniz bu seçim hepsine uygulanır.
-            </p>
-          </div>
-        )}
         <label className="inline-flex min-h-11 w-full touch-manipulation cursor-pointer items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:border-cobalt active:bg-cobalt-soft sm:w-auto">
           Menü fotoğraf(lar)ı seç
           <input
@@ -361,40 +361,82 @@ export default function ImportMenu() {
 
       {preview && (
         <div className="mt-4 space-y-4">
-          {preview.map((cat, ci) => (
-            <Card key={ci}>
-              <h2 className="mb-2 font-semibold">{cat.name}</h2>
-              <ul className="space-y-1">
-                {cat.items.map((item, ii) => (
-                  <li key={ii} className="flex items-center gap-1.5">
-                    <input
-                      value={item.name}
-                      onChange={(e) => updateItem(ci, ii, 'name', e.target.value)}
-                      aria-label="Ürün adı"
-                      className="min-h-10 min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm"
-                    />
-                    <input
-                      value={item.price ?? ''}
-                      onChange={(e) => updateItem(ci, ii, 'price', e.target.value)}
-                      placeholder="₺"
-                      aria-label="Fiyat"
-                      inputMode="decimal"
-                      className="min-h-10 w-16 shrink-0 rounded border border-line px-2 py-1 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeItem(ci, ii)}
-                      className="flex min-h-10 min-w-10 shrink-0 touch-manipulation items-center justify-center rounded text-ink-soft hover:bg-coral-soft hover:text-coral-deep active:bg-coral-soft"
-                      aria-label={`${item.name} satırını kaldır`}
-                      title="Kaldır"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ))}
+          <p className="text-xs text-ink-soft">
+            Bir ürün yanlış kategoriye düşmüşse, satırdaki kategori seçiciden doğrusunu seçin.
+            Kategori adı AI tarafından yanlış okunduysa/uydurulduysa başlığı doğrudan düzenleyin.
+          </p>
+          {(() => {
+            // Önizlemedeki kategoriler + daha önce kaydedilmiş kategoriler — ürünü
+            // taşırken seçenek olarak sunulur (aynı isim tekrarlanmaz).
+            const categoryOptions = Array.from(
+              new Map(
+                [...preview.map((c) => c.name), ...existingCategoryNames].map((n) => [
+                  normalizeName(n),
+                  n,
+                ]),
+              ).values(),
+            )
+            return preview.map((cat, ci) => (
+              <Card key={ci}>
+                <input
+                  value={cat.name}
+                  onChange={(e) => updateCategoryName(ci, e.target.value)}
+                  aria-label="Kategori adı"
+                  className="mb-2 min-h-9 w-full rounded border border-transparent bg-transparent px-1 font-semibold outline-none hover:border-line focus:border-cobalt focus:bg-surface"
+                />
+                <ul className="space-y-1">
+                  {cat.items.map((item, ii) => (
+                    <li key={ii} className="flex flex-wrap items-center gap-1.5">
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateItem(ci, ii, 'name', e.target.value)}
+                        aria-label="Ürün adı"
+                        className="min-h-10 min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm"
+                      />
+                      <input
+                        value={item.price ?? ''}
+                        onChange={(e) => updateItem(ci, ii, 'price', e.target.value)}
+                        placeholder="₺"
+                        aria-label="Fiyat"
+                        inputMode="decimal"
+                        className="min-h-10 w-16 shrink-0 rounded border border-line px-2 py-1 text-sm"
+                      />
+                      <select
+                        value={cat.name}
+                        onChange={(e) => {
+                          if (e.target.value === '__new__') {
+                            const name = window.prompt('Yeni kategori adı:')?.trim()
+                            if (name) moveItem(ci, ii, name)
+                            return
+                          }
+                          moveItem(ci, ii, e.target.value)
+                        }}
+                        aria-label="Ürünün kategorisi"
+                        title="Ürünü başka bir kategoriye taşı"
+                        className="min-h-10 max-w-[10rem] shrink-0 rounded border border-line bg-surface px-1 py-1 text-xs text-ink-soft"
+                      >
+                        {categoryOptions.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                        <option value="__new__">+ Yeni kategori…</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(ci, ii)}
+                        className="flex min-h-10 min-w-10 shrink-0 touch-manipulation items-center justify-center rounded text-ink-soft hover:bg-coral-soft hover:text-coral-deep active:bg-coral-soft"
+                        aria-label={`${item.name} satırını kaldır`}
+                        title="Kaldır"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ))
+          })()}
           <Button onClick={saveAll} disabled={saving} className="w-full">
             {saving
               ? saveStep || 'Kaydediliyor…'

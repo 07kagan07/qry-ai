@@ -50,19 +50,14 @@ Kurallar:
 - Fiyat yerine "İşletme ile görüşün", "Sorunuz", "Fiyat için sorun" gibi bir metin
   yazıyorsa: price'ı null yap ve bu ifadeyi description alanına ekle (mevcut açıklamayla
   birleştirerek), böylece bilgi kaybolmaz.
-- Ürün adlarını menüde yazıldığı gibi koru.
-- Kullanıcı "devam eden kategori" bilgisi verirse (uzun bir kategori tek fotoğrafa sığmayıp
-  birden fazla fotoğrafla yüklendiğinde, başlık önceki karede kalmış olabilir): fotoğrafta
-  AÇIKÇA farklı/yeni bir kategori başlığı görünmüyorsa TÜM ürünleri, verilen isimle BİREBİR
-  aynı şekilde o kategoriye ata — benzer ama farklı bir isim uydurma. Fotoğrafta gerçekten
-  yeni bir başlık görünüyorsa (net biçimde başka bir kategori adı yazılıysa) onu kullan.`
+- Ürün adlarını menüde yazıldığı gibi koru.`
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
   if (opt) return opt
 
   try {
-    const { image, media_type, continuation_category } = await req.json()
+    const { image, media_type } = await req.json()
     if (!image || typeof image !== 'string') {
       return jsonResponse({ error: 'Görsel gerekli.' }, 400)
     }
@@ -71,19 +66,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Desteklenmeyen görsel formatı.' }, 400)
     }
 
-    const instruction = ['Bu menü fotoğrafındaki tüm kategorileri ve ürünleri çıkar.']
-    if (continuation_category && typeof continuation_category === 'string') {
-      instruction.push(
-        `Devam eden kategori: "${continuation_category}". Fotoğrafta yeni bir kategori ` +
-          'başlığı açıkça görünmüyorsa tüm ürünleri bu isimle (birebir aynı) grupla.',
-      )
-    }
-
     const result = await generateJson(
       SYSTEM_PROMPT,
       [
         { inline_data: { mime_type: media_type, data: image } },
-        { text: instruction.join('\n') },
+        { text: 'Bu menü fotoğrafındaki tüm kategorileri ve ürünleri çıkar.' },
       ],
       OUTPUT_SCHEMA,
     )

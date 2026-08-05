@@ -91,17 +91,11 @@ export async function analyzeBatch(
   return map
 }
 
-/** Menü fotoğrafından ürünleri çıkar. continuationCategory: kategori başlığı bu
- * fotoğrafa sığmadıysa, ürünlerin ait olduğu (önceki fotoğraftaki) kategori adı. */
-export async function importMenuFromImage(
-  imageBase64: string,
-  mediaType: string,
-  continuationCategory?: string,
-) {
+/** Menü fotoğrafından ürünleri çıkar */
+export async function importMenuFromImage(imageBase64: string, mediaType: string) {
   const result = await invoke<{ categories: ImportedCategory[] }>('ai-import-menu', {
     image: imageBase64,
     media_type: mediaType,
-    continuation_category: continuationCategory,
   })
   return result.categories ?? []
 }
