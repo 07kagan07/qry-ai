@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ALLERGENS } from '../../../lib/allergens'
+import { formatPrice } from '../../../lib/currency'
 import type { MenuItem } from '../../../lib/types'
 import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
+import FxPrice from '../../../components/FxPrice'
 import type { MenuThemeProps } from './types'
 
 // Kompakt Liste: görselsiz, sık aralıklı, minimum gezinme yükü. Çok ürünlü
@@ -95,9 +97,14 @@ export default function CompactMenuTheme({
                         <span className="min-w-0 flex-1 truncate font-medium text-ink">{item.name}</span>
                         <span className="dot-leader" aria-hidden />
                         <span className="font-display shrink-0 font-bold text-cobalt">
-                          ₺{Number(item.price).toFixed(2)}
+                          {formatPrice(item.price, cafe.currency)}
                         </span>
                       </span>
+                      <FxPrice
+                        price={item.price}
+                        currency={cafe.currency}
+                        className="block text-right text-[10px] text-ink-soft/70"
+                      />
                       {/* Alerjen/kalori bilgisi mevzuat gereği asla kesilmez — yoğun
                           düzende bile bu satır tam olarak sarmalanır. */}
                       {hasMeta && (
@@ -125,7 +132,9 @@ export default function CompactMenuTheme({
         <AllergenLegend cafe={cafe} className="mt-6" />
       </main>
 
-      {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && (
+        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+      )}
     </div>
   )
 }

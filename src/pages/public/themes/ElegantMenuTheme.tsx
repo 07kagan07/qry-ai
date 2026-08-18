@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ALLERGENS } from '../../../lib/allergens'
+import { formatPrice } from '../../../lib/currency'
 import type { MenuItem } from '../../../lib/types'
 import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
+import FxPrice from '../../../components/FxPrice'
 import type { MenuThemeProps } from './types'
 
 // Zarif Menü: görselsiz, ortalanmış, tipografi odaklı — basılı restoran
@@ -103,9 +105,14 @@ export default function ElegantMenuTheme({
                       </h3>
                       <span className="dot-leader" aria-hidden />
                       <span className="font-display shrink-0 font-bold text-cobalt">
-                        ₺{Number(item.price).toFixed(2)}
+                        {formatPrice(item.price, cafe.currency)}
                       </span>
                     </span>
+                    <FxPrice
+                      price={item.price}
+                      currency={cafe.currency}
+                      className="mt-0.5 block text-center text-[11px] text-ink-soft/70"
+                    />
                     {item.description && (
                       <span className="mx-auto mt-1.5 block max-w-sm text-sm text-ink-soft italic">
                         {item.description}
@@ -151,7 +158,9 @@ export default function ElegantMenuTheme({
         <AllergenLegend cafe={cafe} className="mt-10 text-left" />
       </main>
 
-      {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && (
+        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import type { AllergenKey } from './allergens'
+import type { Currency } from './currency'
 
 export type MenuTheme = 'classic' | 'grid' | 'elegant' | 'compact'
 
@@ -12,6 +13,7 @@ export interface Cafe {
   phone: string | null
   instagram: string | null
   default_locale: string
+  currency: Currency
   menu_theme: MenuTheme
   menu_landing_enabled: boolean
   cover_image_url: string | null

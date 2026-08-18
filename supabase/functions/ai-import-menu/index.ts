@@ -5,6 +5,13 @@ import { generateJson, handleOptions, jsonResponse } from '../_shared/gemini.ts'
 const OUTPUT_SCHEMA = {
   type: 'OBJECT',
   properties: {
+    currency: {
+      type: 'STRING',
+      enum: ['TRY', 'USD', 'EUR'],
+      description:
+        'Menüdeki fiyatların yanında görünen para birimi sembolü/kısaltması: ₺ veya TL → TRY, ' +
+        '$ veya USD → USD, € veya EUR → EUR. Fiyatların yanında hiçbir sembol/kısaltma yoksa TRY varsay.',
+    },
     categories: {
       type: 'ARRAY',
       items: {
@@ -25,7 +32,9 @@ const OUTPUT_SCHEMA = {
                 price: {
                   type: 'NUMBER',
                   nullable: true,
-                  description: 'TL cinsinden fiyat; okunamıyorsa null',
+                  description:
+                    'Menüde yazan fiyat, sayı olarak; okunamıyorsa null. `currency` alanı zaten ' +
+                    'para birimini taşıdığı için burada sadece sayıyı yaz.',
                 },
               },
               required: ['name'],
@@ -36,7 +45,7 @@ const OUTPUT_SCHEMA = {
       },
     },
   },
-  required: ['categories'],
+  required: ['categories', 'currency'],
 }
 
 const SYSTEM_PROMPT = `Bir kafe/restoran menüsü fotoğrafından yapılandırılmış veri çıkarıyorsun.
@@ -44,8 +53,11 @@ Kurallar:
 - Fotoğraftaki TÜM ürünleri çıkar; hiçbirini atlama.
 - Menüde görünen kategori başlıklarını kullan. Kategori yoksa ürünleri mantıklı Türkçe
   kategorilere grupla (örn: Sıcak İçecekler, Soğuk İçecekler, Tatlılar, Atıştırmalıklar).
-- Fiyatları sayı olarak yaz (₺, TL gibi sembolleri atla). Birden fazla boy/fiyat varsa en
-  küçük boyun fiyatını al ve açıklamaya boy bilgisini ekle.
+- Menüdeki fiyatların yanındaki para birimi sembolünü/kısaltmasını tespit et ve tek bir
+  currency alanında bildir (TRY/USD/EUR) — bkz. şema. Fiyatları SADECE bu tespit ettiğin
+  orijinal para biriminde, sayı olarak yaz (sembolü atla); başka bir para birimine ASLA
+  çevirme. Birden fazla boy/fiyat varsa en küçük boyun fiyatını al ve açıklamaya boy
+  bilgisini ekle.
 - Okunamayan fiyatlar için null kullan; fiyat uydurma.
 - Fiyat yerine "İşletme ile görüşün", "Sorunuz", "Fiyat için sorun" gibi bir metin
   yazıyorsa: price'ı null yap ve bu ifadeyi description alanına ekle (mevcut açıklamayla

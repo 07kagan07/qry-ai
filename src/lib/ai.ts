@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { isAllergenKey, type AllergenKey } from './allergens'
+import { isCurrency, type Currency } from './currency'
 
 export interface AnalyzeResult {
   kcal_estimate: number
@@ -91,13 +92,22 @@ export async function analyzeBatch(
   return map
 }
 
-/** Menü fotoğrafından ürünleri çıkar */
-export async function importMenuFromImage(imageBase64: string, mediaType: string) {
-  const result = await invoke<{ categories: ImportedCategory[] }>('ai-import-menu', {
+export interface ImportedMenu {
+  categories: ImportedCategory[]
+  /** Fotoğrafta tespit edilen para birimi; belirlenemediyse TRY varsayılır. */
+  currency: Currency
+}
+
+/** Menü fotoğrafından ürünleri ve para birimini çıkar */
+export async function importMenuFromImage(imageBase64: string, mediaType: string): Promise<ImportedMenu> {
+  const result = await invoke<{ categories: ImportedCategory[]; currency?: string }>('ai-import-menu', {
     image: imageBase64,
     media_type: mediaType,
   })
-  return result.categories ?? []
+  return {
+    categories: result.categories ?? [],
+    currency: result.currency && isCurrency(result.currency) ? result.currency : 'TRY',
+  }
 }
 
 export interface ImagePromptResult {

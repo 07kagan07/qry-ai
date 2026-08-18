@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import type { Category, MenuItem } from '../../lib/types'
 import { ALLERGENS } from '../../lib/allergens'
+import { formatPrice } from '../../lib/currency'
 import ItemFormModal, { type ItemDraft } from '../../components/ItemFormModal'
 import { Button, Card, ErrorText, Input, Spinner } from '../../components/ui'
 
@@ -254,7 +255,7 @@ export default function MenuManager() {
                               {item.name}
                             </span>
                             <span className="text-sm text-ink-soft">
-                              ₺{Number(item.price).toFixed(2)}
+                              {formatPrice(item.price, cafe.currency)}
                             </span>
                             {item.kcal != null ? (
                               <span className="rounded border border-line bg-surface px-1.5 py-0.5 text-xs text-ink-soft">

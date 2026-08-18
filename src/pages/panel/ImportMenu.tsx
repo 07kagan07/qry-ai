@@ -7,8 +7,9 @@ import {
   type BatchAnalyzeInput,
   type ImportedCategory,
 } from '../../lib/ai'
+import { CURRENCIES, CURRENCY_LABELS, CURRENCY_SYMBOLS, type Currency } from '../../lib/currency'
 import type { AiSuggestion } from '../../lib/types'
-import { Button, Card, ErrorText, Spinner } from '../../components/ui'
+import { Button, Card, ErrorText, Select, Spinner } from '../../components/ui'
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
@@ -31,8 +32,12 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function ImportMenu() {
-  const { cafe } = useAuth()
+  const { cafe, refreshCafe } = useAuth()
   const [preview, setPreview] = useState<ImportedCategory[] | null>(null)
+  // Fotoğraf(lar)dan tespit edilen para birimi — kafenin şu anki para
+  // biriminden farklıysa kaydetmeden önce kullanıcıya sorulur (bkz. render).
+  const [detectedCurrency, setDetectedCurrency] = useState<Currency>('TRY')
+  const [confirmedCurrency, setConfirmedCurrency] = useState<Currency>('TRY')
   const [error, setError] = useState('')
   const [note, setNote] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
@@ -89,6 +94,9 @@ export default function ImportMenu() {
       // birleştirilir (ör. 2. fotoğraf da "Gözleme Çeşitleri" başlığıyla devam ediyorsa).
       const merged: ImportedCategory[] = []
       const catIdxByName = new Map<string, number>()
+      // Fotoğraf başına tespit edilen para birimi sayılır; en sık tespit edilen
+      // kazanır (tek fotoğraflık normal durumda doğrudan o fotoğrafın tespiti).
+      const currencyCounts = new Map<Currency, number>()
       let skipped = 0
       let failed = 0
 
@@ -98,7 +106,8 @@ export default function ImportMenu() {
         )
         try {
           const b64 = await fileToBase64(file)
-          const categories = await importMenuFromImage(b64, file.type)
+          const { categories, currency } = await importMenuFromImage(b64, file.type)
+          currencyCounts.set(currency, (currencyCounts.get(currency) ?? 0) + 1)
           for (const cat of categories) {
             const normCat = normalizeName(cat.name)
             let ci = catIdxByName.get(normCat)
@@ -133,6 +142,17 @@ export default function ImportMenu() {
         )
         return
       }
+      let winningCurrency: Currency = cafe.currency
+      let winningCount = -1
+      for (const [c, count] of currencyCounts) {
+        if (count > winningCount) {
+          winningCurrency = c
+          winningCount = count
+        }
+      }
+      setDetectedCurrency(winningCurrency)
+      setConfirmedCurrency(winningCurrency)
+
       setPreview(finalCategories)
       const notes: string[] = []
       if (skipped > 0) {
@@ -198,6 +218,19 @@ export default function ImportMenu() {
     setError('')
     setSaving(true)
     try {
+      // 0) Fotoğraftan tespit edilen (veya kullanıcının onayladığı) para birimi
+      //    kafenin para biriminden farklıysa, ürünleri kaydetmeden önce kafenin
+      //    para birimini günceller — kafede tek bir para birimi kullanılır.
+      if (confirmedCurrency !== cafe.currency) {
+        setSaveStep('Kafenin para birimi güncelleniyor…')
+        const { error: curErr } = await supabase
+          .from('cafes')
+          .update({ currency: confirmedCurrency })
+          .eq('id', cafe.id)
+        if (curErr) throw new Error(curErr.message)
+        await refreshCafe()
+      }
+
       // 1) Tüm ürünlerin beyanlarını (alerjen, kcal, alkol, domuz) ve eksik
       //    açıklamalarını toplu üret. Başarısız olursa içe aktarma yine sürer.
       setSaveStep('Alerjen ve kalori beyanları oluşturuluyor… (30-60 sn sürebilir)')
@@ -359,6 +392,29 @@ export default function ImportMenu() {
         </Card>
       )}
 
+      {preview && cafe && detectedCurrency !== cafe.currency && (
+        <Card className="mt-4 border-line bg-cobalt-soft">
+          <p className="text-sm text-cobalt-deep">
+            Fotoğraf(lar)da <strong>{CURRENCY_LABELS[detectedCurrency]}</strong> tespit edildi —
+            kafenizin şu anki para birimi {CURRENCY_LABELS[cafe.currency]}. Fiyatlar TL'ye
+            çevrilmez; menüyü hangi para biriminde kaydetmek istediğinizi seçin (kafenizin tüm
+            para birimi bu seçime göre güncellenir).
+          </p>
+          <div className="mt-2 max-w-xs">
+            <Select
+              value={confirmedCurrency}
+              onChange={(e) => setConfirmedCurrency(e.target.value as Currency)}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {CURRENCY_LABELS[c]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </Card>
+      )}
+
       {preview && (
         <div className="mt-4 space-y-4">
           <p className="text-xs text-ink-soft">
@@ -396,7 +452,7 @@ export default function ImportMenu() {
                       <input
                         value={item.price ?? ''}
                         onChange={(e) => updateItem(ci, ii, 'price', e.target.value)}
-                        placeholder="₺"
+                        placeholder={CURRENCY_SYMBOLS[confirmedCurrency]}
                         aria-label="Fiyat"
                         inputMode="decimal"
                         className="min-h-10 w-16 shrink-0 rounded border border-line px-2 py-1 text-sm"

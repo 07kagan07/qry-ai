@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import type { AllergenKey } from '../lib/allergens'
+import { CURRENCY_SYMBOLS } from '../lib/currency'
 import type { AiSuggestion, MenuItem } from '../lib/types'
 import { analyzeItem, generateImagePrompt, generateItemImage } from '../lib/ai'
 import { uploadGeneratedImage, uploadItemImage } from '../lib/storage'
@@ -345,7 +346,7 @@ export default function ItemFormModal({ title, initial, categoryName, onSave, on
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Fiyat (₺) *</Label>
+                <Label>Fiyat ({CURRENCY_SYMBOLS[cafe?.currency ?? 'TRY']}) *</Label>
                 <Input value={price} onChange={(e) => setPrice(e.target.value)} required inputMode="decimal" />
               </div>
               <div>

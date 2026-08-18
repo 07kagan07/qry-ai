@@ -1,7 +1,9 @@
 ﻿import { useParams } from 'react-router-dom'
 import { usePublicMenu } from '../../lib/usePublicMenu'
 import { ALLERGENS, ALLERGEN_LIST } from '../../lib/allergens'
+import { formatPrice } from '../../lib/currency'
 import { Spinner, Button } from '../../components/ui'
+import FxPrice from '../../components/FxPrice'
 
 // Mevzuattaki "yazılı alternatif" şartı için yazdırılabilir tam menü.
 export default function PrintMenu() {
@@ -44,7 +46,12 @@ export default function PrintMenu() {
                     </div>
                   </td>
                   <td className="whitespace-nowrap py-2 text-right font-semibold">
-                    ₺{Number(item.price).toFixed(2)}
+                    {formatPrice(item.price, cafe.currency)}
+                    <FxPrice
+                      price={item.price}
+                      currency={cafe.currency}
+                      className="block text-xs font-normal text-ink-soft"
+                    />
                   </td>
                 </tr>
               ))}

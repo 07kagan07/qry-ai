@@ -4,8 +4,9 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { MENU_THEMES } from '../../lib/menuThemes'
 import { uploadCafeImage } from '../../lib/storage'
+import { CURRENCIES, CURRENCY_LABELS, type Currency } from '../../lib/currency'
 import type { MenuTheme } from '../../lib/types'
-import { Button, Card, ErrorText, Input, Label } from '../../components/ui'
+import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
 
 const ACCEPTED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_COVER_BYTES = 5 * 1024 * 1024
@@ -59,6 +60,7 @@ export default function Dashboard() {
   const [address, setAddress] = useState(cafe?.address ?? '')
   const [phone, setPhone] = useState(cafe?.phone ?? '')
   const [instagram, setInstagram] = useState(cafe?.instagram ?? '')
+  const [currency, setCurrency] = useState<Currency>(cafe?.currency ?? 'TRY')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -145,7 +147,13 @@ export default function Dashboard() {
     setBusy(true)
     const { error } = await supabase
       .from('cafes')
-      .update({ name, address: address || null, phone: phone || null, instagram: instagram || null })
+      .update({
+        name,
+        address: address || null,
+        phone: phone || null,
+        instagram: instagram || null,
+        currency,
+      })
       .eq('id', cafe!.id)
     setBusy(false)
     if (error) {
@@ -189,6 +197,20 @@ export default function Dashboard() {
           <div>
             <Label>Instagram</Label>
             <Input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@kullaniciadi" />
+          </div>
+          <div>
+            <Label>Para Birimi</Label>
+            <Select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {CURRENCY_LABELS[c]}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-ink-soft">
+              Menünüzdeki tüm fiyatlar bu para biriminde gösterilir. Menü fotoğrafından içe
+              aktarırken tespit edilen para birimi bunu otomatik günceller.
+            </p>
           </div>
           <ErrorText>{error}</ErrorText>
           {saved && <p className="text-sm text-teal-deep">Kaydedildi.</p>}

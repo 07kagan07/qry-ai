@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { ALLERGENS } from '../lib/allergens'
+import { formatPrice, type Currency } from '../lib/currency'
 import type { MenuItem } from '../lib/types'
+import FxPrice from './FxPrice'
 
 interface Props {
   item: MenuItem
+  currency: Currency
   onClose: () => void
 }
 
@@ -12,7 +15,7 @@ interface Props {
 // Işıklandırma: ızgara/kompakt temalarda kısaltılan açıklama ve ikon-only
 // alerjen rozetlerinin tam hâlini burada gösteriyoruz (dokunmatik cihazlarda
 // title tooltip'i çalışmadığı için bu, alerjen bilgisine tek erişim yolu).
-export default function ItemDetailModal({ item, onClose }: Props) {
+export default function ItemDetailModal({ item, currency, onClose }: Props) {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -53,8 +56,11 @@ export default function ItemDetailModal({ item, onClose }: Props) {
               <h2 id="item-detail-title" className="font-display text-2xl font-bold break-words text-ink">
                 {item.name}
               </h2>
-              <span className="font-display shrink-0 text-xl font-bold text-cobalt">
-                ₺{Number(item.price).toFixed(2)}
+              <span className="shrink-0 text-right">
+                <span className="font-display block text-xl font-bold text-cobalt">
+                  {formatPrice(item.price, currency)}
+                </span>
+                <FxPrice price={item.price} currency={currency} className="block text-xs text-ink-soft" />
               </span>
             </div>
 

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ALLERGENS } from '../../../lib/allergens'
+import { formatPrice } from '../../../lib/currency'
 import type { MenuItem } from '../../../lib/types'
 import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
+import FxPrice from '../../../components/FxPrice'
 import type { MenuThemeProps } from './types'
 
 // Klasik Liste: küçük kare görsel solda, ürün adı + noktalı kılavuz + fiyat,
@@ -104,9 +106,14 @@ export default function ClassicMenuTheme({
                         <h3 className="min-w-0 font-semibold break-words text-ink">{item.name}</h3>
                         <span className="dot-leader" aria-hidden />
                         <span className="font-display shrink-0 font-bold text-cobalt">
-                          ₺{Number(item.price).toFixed(2)}
+                          {formatPrice(item.price, cafe.currency)}
                         </span>
                       </span>
+                      <FxPrice
+                        price={item.price}
+                        currency={cafe.currency}
+                        className="block text-right text-[11px] text-ink-soft/70"
+                      />
                       {item.description && (
                         <span className="mt-0.5 block text-sm text-ink-soft">{item.description}</span>
                       )}
@@ -146,7 +153,9 @@ export default function ClassicMenuTheme({
         <AllergenLegend cafe={cafe} className="mt-10" />
       </main>
 
-      {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && (
+        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+      )}
     </div>
   )
 }

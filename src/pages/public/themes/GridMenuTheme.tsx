@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ALLERGENS } from '../../../lib/allergens'
+import { formatPrice } from '../../../lib/currency'
 import type { MenuItem } from '../../../lib/types'
 import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
+import FxPrice from '../../../components/FxPrice'
 import type { MenuThemeProps } from './types'
 
 // Görsel Izgara: 2-3 sütunlu, fotoğraf öne çıkan kartlar. AI ile üretilen ya
@@ -109,8 +111,13 @@ export default function GridMenuTheme({
                     <span className="block p-2.5">
                       <h3 className="line-clamp-1 text-sm font-semibold text-ink">{item.name}</h3>
                       <span className="font-display block text-sm font-bold text-cobalt">
-                        ₺{Number(item.price).toFixed(2)}
+                        {formatPrice(item.price, cafe.currency)}
                       </span>
+                      <FxPrice
+                        price={item.price}
+                        currency={cafe.currency}
+                        className="block text-[10px] text-ink-soft/70"
+                      />
                       {item.description && (
                         <span className="mt-0.5 line-clamp-2 block text-xs text-ink-soft">
                           {item.description}
@@ -146,7 +153,9 @@ export default function GridMenuTheme({
         <AllergenLegend cafe={cafe} className="mt-6" />
       </main>
 
-      {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && (
+        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+      )}
     </div>
   )
 }
