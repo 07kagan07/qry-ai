@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useT } from '../context/LocaleContext'
 import type { Cafe, WaiterCallStatus } from '../lib/types'
 
 interface Props {
@@ -23,6 +24,7 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
   const [state, setState] = useState<ResolvedState | null>(null)
   const [sending, setSending] = useState(false)
   const [justCalled, setJustCalled] = useState(false)
+  const t = useT()
 
   useEffect(() => {
     setState(null)
@@ -122,7 +124,7 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
       <div className="fixed right-4 bottom-4 z-30 max-w-[calc(100%-2rem)] pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink-soft shadow-lg">
           <span aria-hidden>🔄</span>
-          Garson çağırmak için QR kodu tekrar okutun
+          {t('waiter.expired')}
         </div>
       </div>
     )
@@ -154,12 +156,12 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
       {status === 'pending' ? (
         <div className="flex min-h-11 touch-manipulation items-center gap-2 rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink-soft shadow-lg">
           <span aria-hidden>🔔</span>
-          {justCalled ? 'Garson çağrıldı ✓' : 'Çağrınız iletildi'}
+          {justCalled ? `${t('waiter.pending')} ✓` : t('waiter.pending')}
         </div>
       ) : status === 'acknowledged' ? (
         <div className="flex min-h-11 touch-manipulation items-center gap-2 rounded-full border border-teal bg-teal-soft px-4 py-2.5 text-sm font-semibold text-teal-deep shadow-lg">
           <span aria-hidden>🚶</span>
-          Personel geliyor
+          {t('waiter.acknowledged')}
         </div>
       ) : (
         <button
@@ -169,7 +171,7 @@ export default function CallWaiterButton({ cafe, sessionId }: Props) {
           className="flex min-h-11 touch-manipulation items-center gap-2 rounded-full bg-cobalt px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-cobalt-deep active:scale-[0.97] disabled:opacity-60"
         >
           <span aria-hidden>🔔</span>
-          {sending ? 'Çağrılıyor…' : 'Garson Çağır'}
+          {sending ? t('waiter.calling') : t('waiter.callButton')}
         </button>
       )}
     </div>

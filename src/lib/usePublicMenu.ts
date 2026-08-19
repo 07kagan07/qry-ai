@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import type { LocaleKey } from './locales'
 import type { Cafe, Category, CategoryWithItems, MenuItem } from './types'
 
 interface PublicMenuState {
@@ -9,7 +10,12 @@ interface PublicMenuState {
   error: string
 }
 
-export function usePublicMenu(slug: string | undefined): PublicMenuState {
+// locale verilmişse (Türkçe dışında bir dil seçiliyse), item_translations/
+// category_translations'tan çeviriyi çekip name/description'ın üzerine yazar
+// — çevirisi olmayan ürün/kategori sessizce Türkçe kalır, hiçbir şey gizlenmez.
+// 4 tema dosyası ve ItemDetailModal bu sayede hiç değişmiyor; onlar zaten
+// item.name/item.description okuyor, veri zaten doğru dilde geliyor.
+export function usePublicMenu(slug: string | undefined, locale?: LocaleKey | null): PublicMenuState {
   const [state, setState] = useState<PublicMenuState>({
     cafe: null,
     categories: [],
@@ -49,10 +55,56 @@ export function usePublicMenu(slug: string | undefined): PublicMenuState {
       ])
       if (cancelled) return
 
-      const categories = ((cats.data ?? []) as Category[])
+      let categoryRows = (cats.data ?? []) as Category[]
+      let itemRows = (items.data ?? []) as MenuItem[]
+
+      if (locale) {
+        const categoryIds = categoryRows.map((c) => c.id)
+        const itemIds = itemRows.map((i) => i.id)
+        const [catTranslations, itemTranslations] = await Promise.all([
+          categoryIds.length
+            ? supabase
+                .from('category_translations')
+                .select('category_id, name')
+                .eq('locale', locale)
+                .in('category_id', categoryIds)
+            : Promise.resolve({ data: [] }),
+          itemIds.length
+            ? supabase
+                .from('item_translations')
+                .select('item_id, name, description')
+                .eq('locale', locale)
+                .in('item_id', itemIds)
+            : Promise.resolve({ data: [] }),
+        ])
+        if (cancelled) return
+
+        const catNameByCategoryId = new Map(
+          ((catTranslations.data ?? []) as { category_id: string; name: string }[]).map((t) => [
+            t.category_id,
+            t.name,
+          ]),
+        )
+        const itemTranslationById = new Map(
+          ((itemTranslations.data ?? []) as { item_id: string; name: string; description: string | null }[]).map(
+            (t) => [t.item_id, t],
+          ),
+        )
+
+        categoryRows = categoryRows.map((c) => {
+          const translatedName = catNameByCategoryId.get(c.id)
+          return translatedName ? { ...c, name: translatedName } : c
+        })
+        itemRows = itemRows.map((i) => {
+          const t = itemTranslationById.get(i.id)
+          return t ? { ...i, name: t.name, description: t.description ?? i.description } : i
+        })
+      }
+
+      const categories = categoryRows
         .map((c) => ({
           ...c,
-          items: ((items.data ?? []) as MenuItem[]).filter((i) => i.category_id === c.id),
+          items: itemRows.filter((i) => i.category_id === c.id),
         }))
         .filter((c) => c.items.length > 0)
 
@@ -63,7 +115,7 @@ export function usePublicMenu(slug: string | undefined): PublicMenuState {
     return () => {
       cancelled = true
     }
-  }, [slug])
+  }, [slug, locale])
 
   return state
 }

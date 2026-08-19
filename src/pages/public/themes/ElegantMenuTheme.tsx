@@ -6,6 +6,8 @@ import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
 import FxPrice from '../../../components/FxPrice'
+import { useT } from '../../../context/LocaleContext'
+import type { UIKey } from '../../../lib/uiText'
 import type { MenuThemeProps } from './types'
 
 // Zarif Menü: görselsiz, ortalanmış, tipografi odaklı — basılı restoran
@@ -23,6 +25,7 @@ export default function ElegantMenuTheme({
   onToggleFilterOpen,
 }: MenuThemeProps) {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const t = useT()
 
   return (
     <div className="mx-auto max-w-lg pb-20">
@@ -52,7 +55,7 @@ export default function ElegantMenuTheme({
                 : 'border-transparent text-ink-soft hover:text-cobalt'
             }`}
           >
-            Tümü
+            {t('nav.all')}
           </button>
           {allCategories.map((c) => (
             <button
@@ -80,9 +83,7 @@ export default function ElegantMenuTheme({
 
       <main className="px-5 py-8">
         {shownCategories.length === 0 && (
-          <p className="py-12 text-center text-sm text-ink-soft">
-            Bu filtrelere uyan ürün kalmadı. Filtreyi gevşetmeyi deneyin.
-          </p>
+          <p className="py-12 text-center text-sm text-ink-soft">{t('nav.noResults')}</p>
         )}
         {shownCategories.map((cat) => (
           <section key={cat.id} className="mb-10">
@@ -128,21 +129,21 @@ export default function ElegantMenuTheme({
                       <span className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-xs">
                         {item.kcal != null && (
                           <span className="rounded-md border border-line px-2 py-0.5 font-medium text-ink-soft">
-                            {item.kcal} kcal
+                            {t('badge.kcal', { n: item.kcal })}
                           </span>
                         )}
                         {item.contains_alcohol && (
-                          <span title="Alkollü" aria-hidden>
+                          <span title={t('badge.alcohol')} aria-hidden>
                             🍷
                           </span>
                         )}
                         {item.contains_pork && (
-                          <span title="Domuz ürünü" aria-hidden>
+                          <span title={t('badge.pork')} aria-hidden>
                             🥓
                           </span>
                         )}
                         {item.allergens.map((a) => (
-                          <span key={a} title={ALLERGENS[a].label} aria-hidden>
+                          <span key={a} title={t(`allergen.name.${a}` as UIKey)} aria-hidden>
                             {ALLERGENS[a].icon}
                           </span>
                         ))}
@@ -159,7 +160,12 @@ export default function ElegantMenuTheme({
       </main>
 
       {selectedItem && (
-        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+        <ItemDetailModal
+          item={selectedItem}
+          currency={cafe.currency}
+          orderEnabled={cafe.order_enabled}
+          onClose={() => setSelectedItem(null)}
+        />
       )}
     </div>
   )

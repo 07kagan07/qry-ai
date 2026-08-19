@@ -6,6 +6,7 @@ import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
 import FxPrice from '../../../components/FxPrice'
+import { useT } from '../../../context/LocaleContext'
 import type { MenuThemeProps } from './types'
 
 // Görsel Izgara: 2-3 sütunlu, fotoğraf öne çıkan kartlar. AI ile üretilen ya
@@ -25,6 +26,7 @@ export default function GridMenuTheme({
   onToggleFilterOpen,
 }: MenuThemeProps) {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const t = useT()
 
   return (
     <div className="mx-auto max-w-2xl pb-20">
@@ -36,7 +38,7 @@ export default function GridMenuTheme({
             className="mx-auto mb-3 h-16 w-16 rounded-full border border-line object-cover"
           />
         )}
-        <p className="text-xs font-semibold tracking-[0.2em] text-ink-soft uppercase">Menü</p>
+        <p className="text-xs font-semibold tracking-[0.2em] text-ink-soft uppercase">{t('nav.menuEyebrow')}</p>
         <h1 className="font-display mt-1 text-4xl font-bold tracking-tight text-cobalt">{cafe.name}</h1>
         {cafe.address && <p className="mt-2 text-sm text-ink-soft">{cafe.address}</p>}
       </header>
@@ -51,7 +53,7 @@ export default function GridMenuTheme({
             activeCategory === null ? 'bg-cobalt text-white' : 'bg-surface text-ink-soft hover:text-cobalt'
           }`}
         >
-          Tümü
+          {t('nav.all')}
         </button>
         {allCategories.map((c) => (
           <button
@@ -76,9 +78,7 @@ export default function GridMenuTheme({
 
       <main className="px-4 py-6">
         {shownCategories.length === 0 && (
-          <p className="py-12 text-center text-sm text-ink-soft">
-            Bu filtrelere uyan ürün kalmadı. Filtreyi gevşetmeyi deneyin.
-          </p>
+          <p className="py-12 text-center text-sm text-ink-soft">{t('nav.noResults')}</p>
         )}
         {shownCategories.map((cat) => (
           <section key={cat.id} className="mb-8">
@@ -130,7 +130,7 @@ export default function GridMenuTheme({
                         <span className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px]">
                           {item.kcal != null && (
                             <span className="rounded border border-line bg-porcelain px-1.5 py-0.5 text-ink-soft">
-                              {item.kcal} kcal
+                              {t('badge.kcal', { n: item.kcal })}
                             </span>
                           )}
                           {item.contains_alcohol && <span aria-hidden>🍷</span>}
@@ -154,7 +154,12 @@ export default function GridMenuTheme({
       </main>
 
       {selectedItem && (
-        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+        <ItemDetailModal
+          item={selectedItem}
+          currency={cafe.currency}
+          orderEnabled={cafe.order_enabled}
+          onClose={() => setSelectedItem(null)}
+        />
       )}
     </div>
   )

@@ -28,6 +28,10 @@ const LOCALE_NAMES: Record<string, string> = {
   ru: 'Rusça',
   fr: 'Fransızca',
   es: 'İspanyolca',
+  fa: 'Farsça',
+  uk: 'Ukraynaca',
+  it: 'İtalyanca',
+  zh: 'Çince',
 }
 
 Deno.serve(async (req) => {

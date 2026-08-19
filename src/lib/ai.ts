@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { isAllergenKey, type AllergenKey } from './allergens'
 import { isCurrency, type Currency } from './currency'
@@ -29,7 +30,19 @@ export interface ImportedCategory {
 async function invoke<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(fn, { body })
   if (error) {
-    throw new Error(`AI servisi hatası (${fn}): ${error.message}`)
+    // supabase-js'in error.message'ı non-2xx yanıtlarda hep aynı genel metni
+    // ("Edge Function returned a non-2xx status code") verir — asıl sebep (ör.
+    // Gemini kota hatası) yanıt gövdesindedir, error.context üzerinden okunur.
+    let detail = error.message
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = await error.context.json()
+        if (body?.error) detail = String(body.error)
+      } catch {
+        // Yanıt JSON değilse genel mesaj kalır.
+      }
+    }
+    throw new Error(`AI servisi hatası (${fn}): ${detail}`)
   }
   if (data?.error) {
     throw new Error(String(data.error))

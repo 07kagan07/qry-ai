@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Cafe } from '../../lib/types'
 import { Button } from '../../components/ui'
+import { useT } from '../../context/LocaleContext'
 
 interface Props {
   cafe: Cafe
@@ -12,6 +13,7 @@ interface Props {
 // telefon, konum) ve menüye geçiş butonu.
 export default function LandingHub({ cafe, onEnterMenu }: Props) {
   const [wifiCopied, setWifiCopied] = useState(false)
+  const t = useT()
 
   async function copyWifiPassword() {
     if (!cafe.wifi_password) return
@@ -60,7 +62,7 @@ export default function LandingHub({ cafe, onEnterMenu }: Props) {
         {cafe.address && <p className="mt-1.5 text-sm text-ink-soft">{cafe.address}</p>}
 
         <Button onClick={onEnterMenu} className="mt-6 w-full text-base">
-          Menüye Git →
+          {t('landing.goToMenu')}
         </Button>
 
         {hasQuickLinks && (
@@ -68,10 +70,14 @@ export default function LandingHub({ cafe, onEnterMenu }: Props) {
             {cafe.wifi_ssid && (
               <li className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold tracking-wide text-ink-soft uppercase">Wi-Fi</p>
+                  <p className="text-xs font-semibold tracking-wide text-ink-soft uppercase">
+                    {t('landing.wifi')}
+                  </p>
                   <p className="truncate text-sm font-medium text-ink">{cafe.wifi_ssid}</p>
                   {cafe.wifi_password && (
-                    <p className="truncate text-xs text-ink-soft">Şifre: {cafe.wifi_password}</p>
+                    <p className="truncate text-xs text-ink-soft">
+                      {t('landing.wifiPassword', { password: cafe.wifi_password })}
+                    </p>
                   )}
                 </div>
                 {cafe.wifi_password && (
@@ -80,7 +86,7 @@ export default function LandingHub({ cafe, onEnterMenu }: Props) {
                     onClick={copyWifiPassword}
                     className="min-h-11 shrink-0 touch-manipulation rounded-lg border border-line px-3 text-xs font-semibold text-cobalt active:scale-[0.97]"
                   >
-                    {wifiCopied ? 'Kopyalandı ✓' : 'Şifreyi kopyala'}
+                    {wifiCopied ? `${t('landing.copied')} ✓` : t('landing.copyPassword')}
                   </button>
                 )}
               </li>
@@ -148,7 +154,9 @@ export default function LandingHub({ cafe, onEnterMenu }: Props) {
                   className="flex min-h-11 touch-manipulation items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 active:scale-[0.98]"
                 >
                   <span aria-hidden>📍</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">Yol tarifi al</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                    {t('landing.directions')}
+                  </span>
                   <span aria-hidden className="shrink-0 text-ink-soft">
                     ›
                   </span>

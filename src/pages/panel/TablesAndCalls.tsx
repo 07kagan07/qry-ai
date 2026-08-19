@@ -9,42 +9,6 @@ import { Button, Card, ErrorText, Input } from '../../components/ui'
 
 type CallWithLabel = WaiterCall & { tableLabel: string }
 
-// Tek bir AudioContext yeniden kullanılır (her bip için yenisini açmak yerine).
-// Tarayıcılar, kullanıcı sayfayla hiç etkileşmeden sesin otomatik çalmasını
-// engeller (autoplay policy) — bu yüzden context ilk dokunma/tuş basımında
-// "unlockAudio" ile önceden açılıp kilidi kaldırılır; sonraki çağrılarda
-// kullanıcı etkileşimi olmadan da (arka planda) ses çalabilir.
-let sharedAudioCtx: AudioContext | null = null
-
-function getAudioContext(): AudioContext | null {
-  try {
-    if (!sharedAudioCtx) sharedAudioCtx = new AudioContext()
-    if (sharedAudioCtx.state === 'suspended') void sharedAudioCtx.resume()
-    return sharedAudioCtx
-  } catch {
-    return null
-  }
-}
-
-// Kısa bir bip — bağımlılık eklemeden, Web Audio API ile üretilir.
-function beep() {
-  const ctx = getAudioContext()
-  if (!ctx) return
-  try {
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = 880
-    gain.gain.setValueAtTime(0.6, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.4)
-  } catch {
-    // Tarayıcı Web Audio'yu engellemiş olabilir — sessizce yoksay.
-  }
-}
-
 function TableRow({ table, onDeleted, onToggled }: {
   table: Table
   onDeleted: (id: string) => void
@@ -176,31 +140,8 @@ export default function TablesAndCalls() {
     }
   }, [cafe])
 
-  // Sayfayla ilk dokunma/tuş basımında ses kilidini önceden açar — böylece
-  // müşteri gerçekten çağrı gönderdiğinde tarayıcı otomatik oynatmayı
-  // engellemeden ses hemen çalabilir.
-  useEffect(() => {
-    function unlock() {
-      getAudioContext()
-    }
-    document.addEventListener('pointerdown', unlock, { once: true })
-    document.addEventListener('keydown', unlock, { once: true })
-    return () => {
-      document.removeEventListener('pointerdown', unlock)
-      document.removeEventListener('keydown', unlock)
-    }
-  }, [])
-
-  // Bekleyen ("pending") en az bir çağrı olduğu sürece birkaç saniyede bir
-  // tekrar çalar — kalabalık bir kafede personel ekrana sürekli bakmayabilir,
-  // tek seferlik bir bip kolayca kaçırılabilir. "Geldim" ile onaylanınca durur.
-  const hasPendingCall = calls.some((c) => c.status === 'pending')
-  useEffect(() => {
-    if (!hasPendingCall) return
-    beep()
-    const interval = window.setInterval(beep, 5000)
-    return () => window.clearInterval(interval)
-  }, [hasPendingCall])
+  // Sesli uyarı artık panelin her sayfasında çalışan PanelAlerts.tsx'te
+  // (bkz. PanelLayout.tsx) — burada tekrar etmiyor, sadece satır vurgusu kalıyor.
 
   if (!cafe) return null
 

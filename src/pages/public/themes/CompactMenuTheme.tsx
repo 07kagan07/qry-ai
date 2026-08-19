@@ -6,6 +6,8 @@ import AllergenFilterBar from '../../../components/AllergenFilterBar'
 import AllergenLegend from '../../../components/AllergenLegend'
 import ItemDetailModal from '../../../components/ItemDetailModal'
 import FxPrice from '../../../components/FxPrice'
+import { useT } from '../../../context/LocaleContext'
+import type { UIKey } from '../../../lib/uiText'
 import type { MenuThemeProps } from './types'
 
 // Kompakt Liste: görselsiz, sık aralıklı, minimum gezinme yükü. Çok ürünlü
@@ -23,6 +25,7 @@ export default function CompactMenuTheme({
   onToggleFilterOpen,
 }: MenuThemeProps) {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const t = useT()
 
   return (
     <div className="mx-auto max-w-lg pb-16">
@@ -43,7 +46,7 @@ export default function CompactMenuTheme({
               : 'border-transparent text-ink-soft hover:text-cobalt'
           }`}
         >
-          Tümü
+          {t('nav.all')}
         </button>
         {allCategories.map((c) => (
           <button
@@ -70,9 +73,7 @@ export default function CompactMenuTheme({
 
       <main className="px-4 py-4">
         {shownCategories.length === 0 && (
-          <p className="py-12 text-center text-sm text-ink-soft">
-            Bu filtrelere uyan ürün kalmadı. Filtreyi gevşetmeyi deneyin.
-          </p>
+          <p className="py-12 text-center text-sm text-ink-soft">{t('nav.noResults')}</p>
         )}
         {shownCategories.map((cat) => (
           <section key={cat.id} className="mb-4">
@@ -110,11 +111,13 @@ export default function CompactMenuTheme({
                       {hasMeta && (
                         <span className="mt-0.5 block text-[11px] text-ink-soft">
                           {[
-                            item.kcal != null ? `${item.kcal} kcal` : null,
-                            item.contains_alcohol ? 'Alkollü' : null,
-                            item.contains_pork ? 'Domuz ürünü' : null,
+                            item.kcal != null ? t('badge.kcal', { n: item.kcal }) : null,
+                            item.contains_alcohol ? t('badge.alcohol') : null,
+                            item.contains_pork ? t('badge.pork') : null,
                             item.allergens.length > 0
-                              ? item.allergens.map((a) => `${ALLERGENS[a].icon} ${ALLERGENS[a].label}`).join(', ')
+                              ? item.allergens
+                                  .map((a) => `${ALLERGENS[a].icon} ${t(`allergen.name.${a}` as UIKey)}`)
+                                  .join(', ')
                               : null,
                           ]
                             .filter(Boolean)
@@ -133,7 +136,12 @@ export default function CompactMenuTheme({
       </main>
 
       {selectedItem && (
-        <ItemDetailModal item={selectedItem} currency={cafe.currency} onClose={() => setSelectedItem(null)} />
+        <ItemDetailModal
+          item={selectedItem}
+          currency={cafe.currency}
+          orderEnabled={cafe.order_enabled}
+          onClose={() => setSelectedItem(null)}
+        />
       )}
     </div>
   )
