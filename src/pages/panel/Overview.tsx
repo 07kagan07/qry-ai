@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useFxTable, convertPrice } from '../../lib/exchangeRates'
-import { formatPrice } from '../../lib/currency'
+import { formatPrice, type Currency } from '../../lib/currency'
 import type { Cafe } from '../../lib/types'
 import { Button, Card, Spinner } from '../../components/ui'
 
@@ -77,9 +77,20 @@ export default function Overview() {
 
   const combinedOrderCount = stats.reduce((sum, s) => sum + s.todayOrderCount, 0)
   const combinedReservations = stats.reduce((sum, s) => sum + s.pendingReservations, 0)
-  const combinedRevenueTRY = fxTable
-    ? stats.reduce((sum, s) => sum + convertPrice(s.todayRevenue, s.cafe.currency, 'TRY', fxTable), 0)
-    : null
+  const currencies = new Set(stats.map((s) => s.cafe.currency))
+  const needsConversion = currencies.size > 1
+  // Şubeler zaten tek bir para biriminde ise (yaygın durum) kur tablosuna hiç
+  // ihtiyaç yok — sadece farklı para birimleri karışıksa (nadir) frankfurter.app'a
+  // bağımlı oluyoruz. Önceden hep kur tablosunu bekliyordu; o istek başarısız/yavaş
+  // olduğunda toplam süresiz "—" kalıyordu, tek para birimli şubelerde bile.
+  const combinedRevenue: { amount: number; currency: Currency } | null = !needsConversion
+    ? { amount: stats.reduce((sum, s) => sum + s.todayRevenue, 0), currency: stats[0]?.cafe.currency ?? 'TRY' }
+    : fxTable
+      ? {
+          amount: stats.reduce((sum, s) => sum + convertPrice(s.todayRevenue, s.cafe.currency, 'TRY', fxTable), 0),
+          currency: 'TRY',
+        }
+      : null
 
   return (
     <div className="max-w-3xl">
@@ -95,18 +106,21 @@ export default function Overview() {
             </div>
             <div>
               <p className="text-2xl font-bold text-cobalt-deep">
-                {combinedRevenueTRY != null ? formatPrice(combinedRevenueTRY, 'TRY') : '—'}
+                {combinedRevenue != null ? formatPrice(combinedRevenue.amount, combinedRevenue.currency) : '—'}
               </p>
-              <p className="text-xs text-cobalt-deep">≈ Toplam Ciro</p>
+              <p className="text-xs text-cobalt-deep">{needsConversion ? '≈ Toplam Ciro' : 'Toplam Ciro'}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-cobalt-deep">{combinedReservations}</p>
               <p className="text-xs text-cobalt-deep">Bekleyen Rezervasyon</p>
             </div>
           </div>
-          <p className="mt-3 text-xs text-cobalt-deep/70">
-            Farklı para birimli şubeler güncel kurla TL'ye çevrilerek toplanmıştır — yaklaşık değerdir.
-          </p>
+          {needsConversion && (
+            <p className="mt-3 text-xs text-cobalt-deep/70">
+              Farklı para birimli şubeler güncel kurla TL'ye çevrilerek toplanmıştır — yaklaşık değerdir.
+              {combinedRevenue == null && ' Kur bilgisi yüklenemedi, birazdan tekrar deneyin.'}
+            </p>
+          )}
         </Card>
       )}
 

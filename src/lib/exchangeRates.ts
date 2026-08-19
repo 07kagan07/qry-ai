@@ -46,7 +46,10 @@ async function fetchFxTable(): Promise<FxTable | null> {
   if (cached) return cached
 
   if (!inFlight) {
-    inFlight = fetch('https://api.frankfurter.app/latest?from=EUR&to=USD,TRY')
+    // frankfurter.app, frankfurter.dev'e taşındı (eski adres artık 301 ile
+    // yönlendiriyor) — tarayıcıda cross-origin yönlendirmede CORS sorunu
+    // yaşanmaması için doğrudan yeni adres kullanılıyor.
+    inFlight = fetch('https://api.frankfurter.dev/v1/latest?from=EUR&to=USD,TRY')
       .then((res) => {
         if (!res.ok) throw new Error('fx fetch failed')
         return res.json() as Promise<{ rates: { USD: number; TRY: number } }>
